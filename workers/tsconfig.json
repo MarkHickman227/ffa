@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "moduleResolution": "node",
+    "module": "commonjs",
+    "outDir": "../dist/workers"
+  },
+  "include": ["./**/*.ts"],
+  "exclude": ["node_modules"]
+}

@@ -1,0 +1,100 @@
+name: PR Pipeline
+
+on:
+  pull_request:
+    branches: [main, staging]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm ci
+      - run: npm run lint
+
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm ci
+      - run: npm run typecheck
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm ci
+      - run: npm run build
+        env:
+          DATABASE_URL: postgresql://ffa:ffa@localhost:5432/ffa
+          REDIS_URL: redis://localhost:6379
+          NEXTAUTH_URL: http://localhost:3000
+          NEXTAUTH_SECRET: ci-test-secret-at-least-32-characters
+          RESEND_API_KEY: re_test
+          EMAIL_FROM: test@example.com
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          AWS_S3_BUCKET: test-bucket
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ffa
+          POSTGRES_USER: ffa
+          POSTGRES_PASSWORD: ffa
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm ci
+      - run: npx prisma db push --skip-generate
+        env:
+          DATABASE_URL: postgresql://ffa:ffa@localhost:5432/ffa
+      - run: npx prisma db seed
+        env:
+          DATABASE_URL: postgresql://ffa:ffa@localhost:5432/ffa
+      - name: Check health endpoint
+        run: |
+          npm run build &
+          sleep 15
+          curl -f http://localhost:3000/api/health || exit 1
+        env:
+          DATABASE_URL: postgresql://ffa:ffa@localhost:5432/ffa
+          REDIS_URL: redis://localhost:6379
+          NEXTAUTH_URL: http://localhost:3000
+          NEXTAUTH_SECRET: ci-test-secret-at-least-32-characters
+          RESEND_API_KEY: re_test
+          EMAIL_FROM: test@example.com
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          AWS_S3_BUCKET: test-bucket

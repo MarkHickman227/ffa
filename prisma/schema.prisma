@@ -1,0 +1,391 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  SELLER
+  BUYER
+  CONVEYANCER
+  AGENT
+  SURVEYOR
+  ADMIN
+  SYSTEM
+}
+
+enum TransactionStatus {
+  DRAFT
+  SELLER_FORM_IN_PROGRESS
+  SELLER_FORM_SUBMITTED
+  BUYER_REVIEW
+  BUYER_ACCEPTED
+  EXCHANGE_COMPLETE
+  ARCHIVED
+}
+
+enum ItemType {
+  FIXTURE        // attached/built-in, stays with property by default
+  FITTING        // freestanding, leaves with seller by default
+  CURTAIN_BLIND
+  CARPET_FLOORING
+  LIGHT_FITTING
+  KITCHEN_APPLIANCE
+  BATHROOM_FITTING
+  GARDEN_ITEM
+  OUTDOOR_STRUCTURE
+  SMART_HOME
+  SECURITY_SYSTEM
+  OTHER
+}
+
+enum ItemStatus {
+  INCLUDED
+  EXCLUDED
+  NEGOTIABLE
+  REMOVED_PRIOR
+}
+
+enum RiskFlag {
+  NONE
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum EnquiryStatus {
+  OPEN
+  ANSWERED
+  CLOSED
+}
+
+enum ReconciliationStatus {
+  MATCHED
+  CONFLICT
+  UNMATCHED
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+// NextAuth adapter required tables
+model Account {
+  id                String  @id @default(uuid()) @db.Uuid
+  userId            String  @map("user_id") @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(uuid()) @db.Uuid
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id") @db.Uuid
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Firm {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users        User[]
+  transactions Transaction[]
+
+  @@map("firms")
+}
+
+model User {
+  id            String    @id @default(uuid()) @db.Uuid
+  email         String    @unique @db.VarChar(255)
+  role          UserRole
+  firstName     String    @map("first_name") @db.VarChar(100)
+  lastName      String    @map("last_name") @db.VarChar(100)
+  passwordHash  String?   @map("password_hash") @db.VarChar(255)
+  totpSecret    String?   @map("totp_secret") @db.VarChar(255)
+  totpEnabled   Boolean   @default(false) @map("totp_enabled")
+  failedLogins  Int       @default(0) @map("failed_logins")
+  lockedUntil   DateTime? @map("locked_until")
+  firmId        String?   @map("firm_id") @db.Uuid
+  deletedAt     DateTime? @map("deleted_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  firm              Firm?          @relation(fields: [firmId], references: [id])
+  sellerTransactions Transaction[] @relation("SellerUser")
+  buyerTransactions  Transaction[] @relation("BuyerUser")
+  auditLogs         AuditLog[]
+  magicLinks        MagicLink[]
+  accounts          Account[]
+  sessions          Session[]
+
+  @@index([email])
+  @@index([firmId])
+  @@map("users")
+}
+
+model MagicLink {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique @db.VarChar(255)
+  usedAt    DateTime? @map("used_at")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@map("magic_links")
+}
+
+model Property {
+  id           String   @id @default(uuid()) @db.Uuid
+  addressLine1 String   @map("address_line1") @db.VarChar(255)
+  addressLine2 String?  @map("address_line2") @db.VarChar(255)
+  city         String   @db.VarChar(100)
+  postcode     String   @db.VarChar(10)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  transactions Transaction[]
+
+  @@index([postcode])
+  @@map("properties")
+}
+
+model Transaction {
+  id              String            @id @default(uuid()) @db.Uuid
+  reference       String            @unique @db.VarChar(50)
+  status          TransactionStatus @default(DRAFT)
+  propertyId      String            @map("property_id") @db.Uuid
+  sellerId        String            @map("seller_id") @db.Uuid
+  buyerId         String?           @map("buyer_id") @db.Uuid
+  conveyancerFirmId String?         @map("conveyancer_firm_id") @db.Uuid
+  sellerSubmittedAt DateTime?       @map("seller_submitted_at")
+  buyerAcceptedAt   DateTime?       @map("buyer_accepted_at")
+  exchangedAt       DateTime?       @map("exchanged_at")
+  valuationDate     DateTime?       @map("valuation_date")
+  deletedAt         DateTime?       @map("deleted_at")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+
+  property       Property           @relation(fields: [propertyId], references: [id])
+  seller         User               @relation("SellerUser", fields: [sellerId], references: [id])
+  buyer          User?              @relation("BuyerUser", fields: [buyerId], references: [id])
+  conveyancerFirm Firm?             @relation(fields: [conveyancerFirmId], references: [id])
+  fixturesItems  FixturesItem[]
+  enquiries      Enquiry[]
+  legalAcknowledgements LegalAcknowledgement[]
+  buyerAcceptances BuyerAcceptance[]
+  marketingInclusions MarketingInclusion[]
+  documents      TransactionDocument[]
+  surveyorAccess SurveyorAccess[]
+  auditLogs      AuditLog[]
+
+  @@index([status])
+  @@index([sellerId])
+  @@index([buyerId])
+  @@index([conveyancerFirmId])
+  @@map("transactions")
+}
+
+model FixturesItem {
+  id            String      @id @default(uuid()) @db.Uuid
+  transactionId String      @map("transaction_id") @db.Uuid
+  room          String      @db.VarChar(100)
+  description   String      @db.VarChar(500)
+  itemType      ItemType    @map("item_type")
+  status        ItemStatus  @default(INCLUDED)
+  riskFlag      RiskFlag    @default(NONE) @map("risk_flag")
+  riskFlagDismissedAt   DateTime? @map("risk_flag_dismissed_at")
+  riskFlagDismissReason String?   @map("risk_flag_dismiss_reason") @db.VarChar(500)
+  estimatedValue        Decimal?  @map("estimated_value") @db.Decimal(10, 2)
+  notes                 String?   @db.Text
+  photoUrls             String[]  @map("photo_urls")
+  sortOrder             Int       @default(0) @map("sort_order")
+  deletedAt             DateTime? @map("deleted_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  transaction  Transaction            @relation(fields: [transactionId], references: [id])
+  changeLogs   FixturesItemChangeLog[]
+  marketingInclusions MarketingInclusion[]
+
+  @@index([transactionId])
+  @@index([riskFlag])
+  @@map("fixtures_items")
+}
+
+// Immutable — no UPDATE, no DELETE
+model FixturesItemChangeLog {
+  id            String     @id @default(uuid()) @db.Uuid
+  fixturesItemId String    @map("fixtures_item_id") @db.Uuid
+  transactionId String     @map("transaction_id") @db.Uuid
+  changedByUserId String   @map("changed_by_user_id") @db.Uuid
+  fieldName     String     @map("field_name") @db.VarChar(100)
+  oldValue      String?    @map("old_value") @db.Text
+  newValue      String?    @map("new_value") @db.Text
+  changedAt     DateTime   @default(now()) @map("changed_at")
+
+  fixturesItem FixturesItem @relation(fields: [fixturesItemId], references: [id])
+
+  @@index([fixturesItemId])
+  @@index([transactionId, changedAt])
+  @@map("fixtures_item_change_logs")
+}
+
+model Enquiry {
+  id            String        @id @default(uuid()) @db.Uuid
+  transactionId String        @map("transaction_id") @db.Uuid
+  raisedByUserId String       @map("raised_by_user_id") @db.Uuid
+  fixturesItemId String?      @map("fixtures_item_id") @db.Uuid
+  question      String        @db.Text
+  answer        String?       @db.Text
+  status        EnquiryStatus @default(OPEN)
+  answeredAt    DateTime?     @map("answered_at")
+  closedAt      DateTime?     @map("closed_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+
+  @@index([transactionId])
+  @@index([status])
+  @@map("enquiries")
+}
+
+// Immutable — no UPDATE, no DELETE
+model LegalAcknowledgement {
+  id            String   @id @default(uuid()) @db.Uuid
+  transactionId String   @map("transaction_id") @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  acknowledgedAt DateTime @default(now()) @map("acknowledged_at")
+  ipAddress     String   @map("ip_address") @db.VarChar(45)
+  userAgent     String   @map("user_agent") @db.VarChar(500)
+  legalText     String   @map("legal_text") @db.Text
+  formVersion   String   @map("form_version") @db.VarChar(20)
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+
+  @@index([transactionId])
+  @@index([userId])
+  @@map("legal_acknowledgements")
+}
+
+// Immutable — no UPDATE, no DELETE
+model BuyerAcceptance {
+  id            String   @id @default(uuid()) @db.Uuid
+  transactionId String   @map("transaction_id") @db.Uuid
+  buyerUserId   String   @map("buyer_user_id") @db.Uuid
+  acceptedAt    DateTime @default(now()) @map("accepted_at")
+  ipAddress     String   @map("ip_address") @db.VarChar(45)
+  userAgent     String   @map("user_agent") @db.VarChar(500)
+  acceptanceText String  @map("acceptance_text") @db.Text
+  fixturesSnapshot Json  @map("fixtures_snapshot")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+
+  @@index([transactionId])
+  @@map("buyer_acceptances")
+}
+
+model MarketingInclusion {
+  id              String               @id @default(uuid()) @db.Uuid
+  transactionId   String               @map("transaction_id") @db.Uuid
+  fixturesItemId  String               @map("fixtures_item_id") @db.Uuid
+  listedInMarketing Boolean            @default(false) @map("listed_in_marketing")
+  reconciliationStatus ReconciliationStatus @default(UNMATCHED) @map("reconciliation_status")
+  conflictNote    String?              @map("conflict_note") @db.VarChar(500)
+  reconciledAt    DateTime?            @map("reconciled_at")
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+
+  transaction  Transaction  @relation(fields: [transactionId], references: [id])
+  fixturesItem FixturesItem @relation(fields: [fixturesItemId], references: [id])
+
+  @@index([transactionId])
+  @@index([reconciliationStatus])
+  @@map("marketing_inclusions")
+}
+
+model TransactionDocument {
+  id            String   @id @default(uuid()) @db.Uuid
+  transactionId String   @map("transaction_id") @db.Uuid
+  documentType  String   @map("document_type") @db.VarChar(50)
+  s3Key         String   @map("s3_key") @db.VarChar(500)
+  s3Bucket      String   @map("s3_bucket") @db.VarChar(100)
+  generatedAt   DateTime @default(now()) @map("generated_at")
+  generatedByUserId String? @map("generated_by_user_id") @db.Uuid
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+
+  @@index([transactionId])
+  @@map("transaction_documents")
+}
+
+model SurveyorAccess {
+  id            String    @id @default(uuid()) @db.Uuid
+  transactionId String    @map("transaction_id") @db.Uuid
+  surveyorUserId String   @map("surveyor_user_id") @db.Uuid
+  grantedByUserId String  @map("granted_by_user_id") @db.Uuid
+  grantedAt     DateTime  @default(now()) @map("granted_at")
+  revokedAt     DateTime? @map("revoked_at")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+
+  @@index([transactionId])
+  @@index([surveyorUserId])
+  @@map("surveyor_access")
+}
+
+// Write-only — no UPDATE, no DELETE
+model AuditLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  transactionId String?  @map("transaction_id") @db.Uuid
+  userId        String?  @map("user_id") @db.Uuid
+  eventType     String   @map("event_type") @db.VarChar(100)
+  eventData     Json     @map("event_data")
+  ipAddress     String?  @map("ip_address") @db.VarChar(45)
+  userAgent     String?  @map("user_agent") @db.VarChar(500)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  transaction Transaction? @relation(fields: [transactionId], references: [id])
+  user        User?         @relation(fields: [userId], references: [id])
+
+  @@index([transactionId])
+  @@index([userId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
