@@ -1,7 +1,11 @@
 import { Resend } from 'resend'
 import { logger } from './logger'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+let _resend: Resend | null = null
+function getResend(): Resend {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY)
+  return _resend
+}
 const FROM = process.env.EMAIL_FROM ?? 'FFA <noreply@ffa.law>'
 
 export type EmailEvent =
@@ -86,7 +90,7 @@ function buildHtml(event: EmailEvent, data: Record<string, string>): string {
 
 export async function sendEmail(params: EmailParams): Promise<void> {
   try {
-    await resend.emails.send({
+    await getResend().emails.send({
       from: FROM,
       to: params.to,
       subject: SUBJECTS[params.event],
