@@ -22,7 +22,8 @@ const RISK_BADGE: Record<string, 'red' | 'amber' | 'blue' | 'gray'> = {
 }
 
 export default function ConveyancerDashboard() {
-  const { txId } = useParams<{ txId: string }>()
+  const params = useParams()
+  const txId = params?.txId as string
   const [tab, setTab] = useState<Tab>('overview')
   const [items, setItems] = useState<Item[]>([])
   const [changelog, setChangelog] = useState<ChangeLog[]>([])

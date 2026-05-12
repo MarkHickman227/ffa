@@ -9,7 +9,8 @@ interface Item {
 }
 
 export default function SurveyorViewPage() {
-  const { txId } = useParams<{ txId: string }>()
+  const params = useParams()
+  const txId = params?.txId as string
   const [items, setItems] = useState<Item[]>([])
   const [discrepancies, setDiscrepancies] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)

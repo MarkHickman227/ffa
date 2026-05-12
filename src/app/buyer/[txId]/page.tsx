@@ -22,7 +22,8 @@ const ACCEPTANCE_TEXT =
   'I confirm that I have reviewed the Fixtures & Fittings schedule and accept it as part of my purchase of the above property. I understand that this acceptance is legally binding and forms part of the contract of sale.'
 
 export default function BuyerReviewPage() {
-  const { txId } = useParams<{ txId: string }>()
+  const params = useParams()
+  const txId = params?.txId as string
   const [items, setItems] = useState<Item[]>([])
   const [enquiries, setEnquiries] = useState<Enquiry[]>([])
   const [selectedItem, setSelectedItem] = useState<string | null>(null)

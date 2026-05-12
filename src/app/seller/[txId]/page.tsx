@@ -41,7 +41,8 @@ interface FixturesItem {
 }
 
 export default function SellerFormPage() {
-  const { txId } = useParams<{ txId: string }>()
+  const params = useParams()
+  const txId = params?.txId as string
   const router = useRouter()
   const [screen, setScreen] = useState<Screen>('welcome')
   const [selectedRooms, setSelectedRooms] = useState<string[]>([])

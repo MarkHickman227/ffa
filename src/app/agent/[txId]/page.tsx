@@ -12,7 +12,8 @@ interface MarketingItem {
 }
 
 export default function AgentPortalPage() {
-  const { txId } = useParams<{ txId: string }>()
+  const params = useParams()
+  const txId = params?.txId as string
   const [items, setItems] = useState<Item[]>([])
   const [marketing, setMarketing] = useState<MarketingItem[]>([])
   const [running, setRunning] = useState(false)
