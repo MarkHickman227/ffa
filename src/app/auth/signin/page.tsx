@@ -2,11 +2,12 @@
 
 export const dynamic = 'force-dynamic'
 
+import { Suspense } from 'react'
 import { signIn } from 'next-auth/react'
 import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 
-export default function SignInPage() {
+function SignInForm() {
   const searchParams = useSearchParams()
   const [mode, setMode] = useState<'magic' | 'credentials'>('magic')
   const [email, setEmail] = useState('')
@@ -136,5 +137,13 @@ export default function SignInPage() {
         </p>
       </div>
     </main>
+  )
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense>
+      <SignInForm />
+    </Suspense>
   )
 }
