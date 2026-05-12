@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import { S3Client, HeadBucketCommand } from '@aws-sdk/client-s3'
