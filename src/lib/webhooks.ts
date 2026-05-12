@@ -15,29 +15,48 @@ export type WebhookEvent =
   | 'SURVEYOR_ACCESS_GRANTED'
   | 'EXCHANGE_COMPLETE'
 
-const connection = new IORedis(process.env.REDIS_URL ?? 'redis://localhost:6379', {
-  maxRetriesPerRequest: null,
-})
+let _connection: IORedis | null = null
+let _webhookQueue: Queue | null = null
+let _pdfQueue: Queue | null = null
 
-const webhookQueue = new Queue('webhook-events', {
-  connection,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: { type: 'exponential', delay: 2000 },
-    removeOnComplete: 100,
-    removeOnFail: 200,
-  },
-})
+function getConnection(): IORedis {
+  if (!_connection) {
+    _connection = new IORedis(process.env.REDIS_URL ?? 'redis://localhost:6379', {
+      maxRetriesPerRequest: null,
+    })
+  }
+  return _connection
+}
 
-export const pdfQueue = new Queue('pdf-export', {
-  connection,
-  defaultJobOptions: {
-    attempts: 2,
-    backoff: { type: 'fixed', delay: 5000 },
-    removeOnComplete: 50,
-    removeOnFail: 100,
-  },
-})
+function getWebhookQueue(): Queue {
+  if (!_webhookQueue) {
+    _webhookQueue = new Queue('webhook-events', {
+      connection: getConnection(),
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 2000 },
+        removeOnComplete: 100,
+        removeOnFail: 200,
+      },
+    })
+  }
+  return _webhookQueue
+}
+
+function getPdfQueue(): Queue {
+  if (!_pdfQueue) {
+    _pdfQueue = new Queue('pdf-export', {
+      connection: getConnection(),
+      defaultJobOptions: {
+        attempts: 2,
+        backoff: { type: 'fixed', delay: 5000 },
+        removeOnComplete: 50,
+        removeOnFail: 100,
+      },
+    })
+  }
+  return _pdfQueue
+}
 
 export interface WebhookPayload {
   event: WebhookEvent
@@ -58,12 +77,12 @@ export async function emitWebhookEvent(
     timestamp: new Date().toISOString(),
   }
 
-  await webhookQueue.add(event, payload)
+  await getWebhookQueue().add(event, payload)
   logger.info({ event, transactionId }, 'Webhook event enqueued')
 }
 
 export async function enqueuePdfExport(transactionId: string, requestedByUserId: string): Promise<string> {
-  const job = await pdfQueue.add('generate-pdf', { transactionId, requestedByUserId })
+  const job = await getPdfQueue().add('generate-pdf', { transactionId, requestedByUserId })
   logger.info({ jobId: job.id, transactionId }, 'PDF export job enqueued')
   return job.id!
 }
