@@ -8,7 +8,7 @@ type Tab = 'overview' | 'fixtures' | 'changelog' | 'riskflags' | 'enquiries' | '
 
 interface Item {
   id: string; room: string; description: string; status: string; riskFlag: string
-  riskFlagDismissedAt?: string; estimatedValue?: number
+  riskFlagDismissedAt?: string; estimatedValue?: number; signedPhotoUrls?: string[]
 }
 interface ChangeLog {
   id: string; fixturesItemId: string; fieldName: string; oldValue?: string; newValue?: string; changedByUserId: string; changedAt: string
@@ -131,33 +131,33 @@ export default function ConveyancerDashboard() {
 
         {/* ── Fixtures List ─────────────────────────────────────── */}
         {tab === 'fixtures' && (
-          <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="text-left px-4 py-3">Room</th>
-                  <th className="text-left px-4 py-3">Description</th>
-                  <th className="text-left px-4 py-3">Status</th>
-                  <th className="text-left px-4 py-3">Risk</th>
-                  <th className="text-left px-4 py-3">Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={item.id} className={`border-t ${item.status === 'EXCLUDED' && !item.riskFlagDismissedAt ? 'bg-amber-50' : ''}`}>
-                    <td className="px-4 py-3">{item.room}</td>
-                    <td className="px-4 py-3">{item.description}</td>
-                    <td className="px-4 py-3">
-                      <Badge label={item.status} variant={item.status === 'INCLUDED' ? 'green' : item.status === 'EXCLUDED' ? 'red' : 'amber'} />
-                    </td>
-                    <td className="px-4 py-3">
-                      {item.riskFlag !== 'NONE' && <Badge label={item.riskFlag} variant={RISK_BADGE[item.riskFlag]} />}
-                    </td>
-                    <td className="px-4 py-3">{item.estimatedValue ? `£${item.estimatedValue}` : '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-3">
+            {items.map((item) => (
+              <div key={item.id} className={`bg-white rounded-xl border shadow-sm p-4 ${item.riskFlag !== 'NONE' && !item.riskFlagDismissedAt ? 'border-amber-200' : ''}`}>
+                <div className="flex items-start justify-between gap-2 flex-wrap">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900">{item.description}</p>
+                    <p className="text-xs text-gray-500">{item.room}</p>
+                    {item.estimatedValue && <p className="text-xs text-gray-400 mt-0.5">£{item.estimatedValue}</p>}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Badge label={item.status} variant={item.status === 'INCLUDED' ? 'green' : item.status === 'EXCLUDED' ? 'red' : 'amber'} />
+                    {item.riskFlag !== 'NONE' && <Badge label={item.riskFlag} variant={RISK_BADGE[item.riskFlag]} />}
+                  </div>
+                </div>
+                {item.signedPhotoUrls && item.signedPhotoUrls.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    {item.signedPhotoUrls.map((url, i) => (
+                      <img key={i} src={url} alt={`Photo ${i + 1}`}
+                        className="w-20 h-16 object-cover rounded border border-gray-200 cursor-pointer hover:opacity-90"
+                        onClick={() => window.open(url, '_blank')}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
 

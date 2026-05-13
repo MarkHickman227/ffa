@@ -13,6 +13,8 @@ export default function SurveyorViewPage() {
   const txId = params?.txId as string
   const [items, setItems] = useState<Item[]>([])
   const [discrepancies, setDiscrepancies] = useState<Record<string, string>>({})
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -23,6 +25,30 @@ export default function SurveyorViewPage() {
   }, [txId])
 
   const rooms = Array.from(new Set(items.map((i) => i.room)))
+
+  async function submitNotes() {
+    const entries = Object.entries(discrepancies).filter(([, note]) => note.trim())
+    if (entries.length === 0) return
+    setSubmitting(true)
+    try {
+      await Promise.all(
+        entries.map(([itemId, note]) =>
+          fetch(`/api/transactions/${txId}/enquiries`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              question: `[Surveyor discrepancy] ${note}`,
+              fixturesItemId: itemId,
+            }),
+          }),
+        ),
+      )
+      setSubmitted(true)
+      setDiscrepancies({})
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading…</div>
 
@@ -36,6 +62,12 @@ export default function SurveyorViewPage() {
         <p className="text-gray-500 text-sm mb-6">
           You have read-only access to the Fixtures & Fittings schedule. Flag any discrepancies below.
         </p>
+
+        {submitted && (
+          <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 mb-6 text-sm text-green-800">
+            Discrepancy notes submitted — your conveyancer has been notified via the enquiries log.
+          </div>
+        )}
 
         {rooms.map((room) => (
           <div key={room} className="mb-6">
@@ -77,6 +109,18 @@ export default function SurveyorViewPage() {
             </div>
           </div>
         ))}
+
+        {Object.values(discrepancies).some((n) => n.trim()) && (
+          <div className="sticky bottom-4 flex justify-end mt-4">
+            <button
+              onClick={submitNotes}
+              disabled={submitting}
+              className="bg-blue-900 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-800 disabled:opacity-50 shadow-lg transition"
+            >
+              {submitting ? 'Submitting…' : 'Submit Discrepancy Notes'}
+            </button>
+          </div>
+        )}
       </div>
     </main>
   )

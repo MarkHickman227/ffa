@@ -23,8 +23,10 @@ export default function AgentPortalPage() {
   useEffect(() => {
     Promise.all([
       fetch(`/api/transactions/${txId}/fixtures`).then((r) => r.json()),
-    ]).then(([f]) => {
+      fetch(`/api/transactions/${txId}/reconciliation`).then((r) => r.ok ? r.json() : { results: [] }),
+    ]).then(([f, rec]) => {
       setItems(f)
+      if (rec.results?.length > 0) setResults(rec.results)
     }).finally(() => setLoading(false))
   }, [txId])
 

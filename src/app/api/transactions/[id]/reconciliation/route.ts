@@ -7,6 +7,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import Fuse from 'fuse.js'
 import { getServerSession } from '@/lib/auth'
 
+export const GET = withRBAC('agent:read', async (_req, { params }) => {
+  const results = await prisma.marketingInclusion.findMany({
+    where: { transactionId: params.id },
+    select: { fixturesItemId: true, reconciliationStatus: true, conflictNote: true, reconciledAt: true },
+  })
+  return NextResponse.json({ results, conflictCount: results.filter((r) => r.reconciliationStatus === 'CONFLICT').length })
+})
+
 export const POST = withRBAC('agent:reconcile', async (req: NextRequest, { params }) => {
   const session = await getServerSession()
 

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { SignOutButton } from '@/components/SignOutButton'
+import { NewTransactionModal } from '@/components/NewTransactionModal'
 
 export const dynamic = 'force-dynamic'
 
@@ -58,7 +59,10 @@ export default async function ConveyancerHomePage() {
               <p className="text-sm text-gray-500">{session.user.name}</p>
             </div>
           </div>
-          <SignOutButton />
+          <div className="flex items-center gap-3">
+            <NewTransactionModal />
+            <SignOutButton />
+          </div>
         </div>
 
         {transactions.length === 0 ? (

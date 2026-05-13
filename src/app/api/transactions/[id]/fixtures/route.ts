@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { withRBAC } from '@/lib/rbac'
 import { computeRiskFlag } from '@/lib/risk'
 import { writeAuditLog } from '@/lib/audit'
+import { getSignedDownloadUrl } from '@/lib/s3'
 import { ItemStatus, ItemType } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -23,7 +24,21 @@ export const GET = withRBAC('seller_form:read', async (_req, { params }) => {
     where: { transactionId: params.id, deletedAt: null },
     orderBy: [{ room: 'asc' }, { sortOrder: 'asc' }],
   })
-  return NextResponse.json(items)
+  // Attach signed S3 URLs alongside the raw keys so clients can display photos.
+  // photoUrls keeps the original S3 keys; signedPhotoUrls are for <img> display.
+  const resolved = await Promise.all(
+    items.map(async (item) => {
+      if (item.photoUrls.length === 0) return { ...item, signedPhotoUrls: [] }
+      const signed = await Promise.all(
+        item.photoUrls.map(async (key) => {
+          try { return await getSignedDownloadUrl(key, 3600) }
+          catch { return null }
+        }),
+      )
+      return { ...item, signedPhotoUrls: signed.filter(Boolean) as string[] }
+    }),
+  )
+  return NextResponse.json(resolved)
 })
 
 export const POST = withRBAC('seller_form:write', async (req: NextRequest, { params }) => {

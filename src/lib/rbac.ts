@@ -67,6 +67,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Action[]> = {
     'transaction:read',
     'seller_form:read',
     'surveyor:read',
+    'enquiry:raise',
   ],
   [UserRole.ADMIN]: [
     'transaction:read',

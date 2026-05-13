@@ -5,11 +5,14 @@ import { useParams } from 'next/navigation'
 import { Badge } from '@/components/ui/Badge'
 
 interface Item {
-  id: string; room: string; description: string; status: string; riskFlag: string; estimatedValue?: number; notes?: string
+  id: string; room: string; description: string; status: string; riskFlag: string
+  estimatedValue?: number; notes?: string; signedPhotoUrls?: string[]
 }
 interface Enquiry {
   id: string; question: string; answer?: string; status: string; fixturesItemId?: string
 }
+
+type ItemDecision = 'confirm' | 'reject' | null
 
 const STATUS_BADGE: Record<string, 'green' | 'red' | 'amber' | 'gray'> = {
   INCLUDED: 'green', EXCLUDED: 'red', NEGOTIABLE: 'amber', REMOVED_PRIOR: 'gray',
@@ -26,8 +29,10 @@ export default function BuyerReviewPage() {
   const txId = params?.txId as string
   const [items, setItems] = useState<Item[]>([])
   const [enquiries, setEnquiries] = useState<Enquiry[]>([])
+  const [decisions, setDecisions] = useState<Record<string, ItemDecision>>({})
   const [selectedItem, setSelectedItem] = useState<string | null>(null)
   const [newQuestion, setNewQuestion] = useState('')
+  const [sendToAgent, setSendToAgent] = useState(false)
   const [showAcceptModal, setShowAcceptModal] = useState(false)
   const [accepted, setAccepted] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -37,27 +42,41 @@ export default function BuyerReviewPage() {
     Promise.all([
       fetch(`/api/transactions/${txId}/fixtures`).then((r) => r.json()),
       fetch(`/api/transactions/${txId}/enquiries`).then((r) => r.json()),
-    ]).then(([f, e]) => {
+      fetch(`/api/transactions/${txId}`).then((r) => r.json()),
+    ]).then(([f, e, tx]) => {
       setItems(f)
       setEnquiries(e)
+      if (tx.buyerAcceptedAt) setAccepted(true)
     }).finally(() => setLoading(false))
   }, [txId])
 
   const openEnquiries = enquiries.filter((e) => e.status === 'OPEN')
-  const canAccept = openEnquiries.length === 0 && !accepted
+  const rejectedItems = Object.values(decisions).filter((d) => d === 'reject').length
+  const canAccept = openEnquiries.length === 0 && rejectedItems === 0 && !accepted
+
+  function setDecision(itemId: string, decision: ItemDecision) {
+    setDecisions((prev) => ({ ...prev, [itemId]: prev[itemId] === decision ? null : decision }))
+    if (decision === 'reject') {
+      const item = items.find((i) => i.id === itemId)
+      setSelectedItem(itemId)
+      setNewQuestion((prev) => prev || `I wish to raise a query about: ${item?.description ?? 'this item'}`)
+    }
+  }
 
   async function raiseEnquiry() {
     if (!newQuestion.trim()) return
+    const prefix = sendToAgent ? '[For Estate Agent] ' : ''
     const res = await fetch(`/api/transactions/${txId}/enquiries`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: newQuestion, fixturesItemId: selectedItem }),
+      body: JSON.stringify({ question: prefix + newQuestion, fixturesItemId: selectedItem }),
     })
     if (res.ok) {
       const created = await res.json()
       setEnquiries((prev) => [created, ...prev])
       setNewQuestion('')
       setSelectedItem(null)
+      setSendToAgent(false)
     }
   }
 
@@ -82,7 +101,13 @@ export default function BuyerReviewPage() {
           </svg>
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Schedule Accepted</h1>
-        <p className="text-gray-600">Your acceptance has been recorded. Your conveyancer will be notified.</p>
+        <p className="text-gray-600 mb-6">Your acceptance has been recorded. Your conveyancer will be notified.</p>
+        <button
+          onClick={() => window.open(`/buyer/${txId}/print`, '_blank')}
+          className="text-sm text-blue-600 hover:underline"
+        >
+          Print / save a copy of this schedule
+        </button>
       </div>
     </div>
   )
@@ -92,19 +117,30 @@ export default function BuyerReviewPage() {
   return (
     <main className="min-h-screen bg-slate-50 p-4">
       <div className="max-w-4xl mx-auto">
-        <div className="flex items-start justify-between mb-6 flex-wrap gap-3">
+        <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Fixtures & Fittings Schedule</h1>
             <p className="text-gray-500 text-sm mt-1">{items.length} item(s) — review and raise any enquiries before accepting</p>
           </div>
-          <button
-            disabled={!canAccept}
-            onClick={() => setShowAcceptModal(true)}
-            className="bg-green-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-600 disabled:opacity-40 transition"
-            title={openEnquiries.length > 0 ? `${openEnquiries.length} open enquiry(s) must be resolved first` : undefined}
-          >
-            Accept Schedule
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => window.open(`/buyer/${txId}/print`, '_blank')}
+              className="border border-gray-300 text-gray-600 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50"
+            >
+              Print / PDF
+            </button>
+            <button
+              disabled={!canAccept}
+              onClick={() => setShowAcceptModal(true)}
+              className="bg-green-700 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-green-600 disabled:opacity-40 transition"
+              title={
+                rejectedItems > 0 ? `${rejectedItems} item(s) rejected — raise enquiries to resolve first` :
+                openEnquiries.length > 0 ? `${openEnquiries.length} open enquiry(s) must be resolved first` : undefined
+              }
+            >
+              Accept Schedule
+            </button>
+          </div>
         </div>
 
         {openEnquiries.length > 0 && (
@@ -112,37 +148,99 @@ export default function BuyerReviewPage() {
             {openEnquiries.length} open enquiry(s) must be answered before you can accept.
           </div>
         )}
+        {rejectedItems > 0 && (
+          <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4 text-sm text-red-800">
+            You have rejected {rejectedItems} item(s). Raise an enquiry for each rejected item, then wait for an answer before accepting.
+          </div>
+        )}
+
+        {/* Legend */}
+        <div className="flex gap-3 mb-4 text-xs text-gray-500">
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-green-500 inline-block"></span> Confirm (happy with item)</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-red-500 inline-block"></span> Reject (raise concern)</span>
+        </div>
 
         {/* Items by room */}
         {rooms.map((room) => (
           <div key={room} className="mb-6">
             <h2 className="font-semibold text-gray-800 mb-2">{room}</h2>
             <div className="space-y-2">
-              {items.filter((i) => i.room === room).map((item) => (
-                <div key={item.id} className="bg-white rounded-xl border p-4 shadow-sm">
-                  <div className="flex items-start justify-between gap-2 flex-wrap">
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">{item.description}</p>
-                      {item.notes && <p className="text-xs text-gray-500 mt-0.5">{item.notes}</p>}
+              {items.filter((i) => i.room === room).map((item) => {
+                const decision = decisions[item.id] ?? null
+                return (
+                  <div
+                    key={item.id}
+                    className={`bg-white rounded-xl border p-4 shadow-sm transition ${
+                      decision === 'confirm' ? 'border-green-300 bg-green-50/30' :
+                      decision === 'reject' ? 'border-red-300 bg-red-50/30' : ''
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2 flex-wrap">
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">{item.description}</p>
+                        {item.notes && <p className="text-xs text-gray-500 mt-0.5">{item.notes}</p>}
+                        {item.signedPhotoUrls && item.signedPhotoUrls.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {item.signedPhotoUrls.map((url, i) => (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                key={i} src={url} alt={`Photo ${i + 1}`}
+                                className="w-20 h-16 object-cover rounded border border-gray-200 cursor-pointer hover:opacity-90"
+                                onClick={() => window.open(url, '_blank')}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
+                        <Badge label={item.status} variant={STATUS_BADGE[item.status] ?? 'gray'} />
+                        {item.riskFlag !== 'NONE' && (
+                          <Badge label={`${item.riskFlag} RISK`} variant={RISK_BADGE[item.riskFlag] ?? 'gray'} />
+                        )}
+                        {item.estimatedValue && (
+                          <span className="text-xs text-gray-500">£{item.estimatedValue}</span>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge label={item.status} variant={STATUS_BADGE[item.status] ?? 'gray'} />
-                      {item.riskFlag !== 'NONE' && (
-                        <Badge label={`${item.riskFlag} RISK`} variant={RISK_BADGE[item.riskFlag] ?? 'gray'} />
-                      )}
-                      {item.estimatedValue && (
-                        <span className="text-xs text-gray-500">£{item.estimatedValue}</span>
-                      )}
+
+                    {/* Per-item actions */}
+                    <div className="flex items-center gap-2 mt-3">
+                      <button
+                        onClick={() => setDecision(item.id, 'confirm')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                          decision === 'confirm'
+                            ? 'bg-green-600 text-white border-green-600'
+                            : 'border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-700'
+                        }`}
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                        Confirm
+                      </button>
+                      <button
+                        onClick={() => setDecision(item.id, 'reject')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                          decision === 'reject'
+                            ? 'bg-red-600 text-white border-red-600'
+                            : 'border-gray-200 text-gray-600 hover:border-red-400 hover:text-red-700'
+                        }`}
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        Reject
+                      </button>
+                      <button
+                        onClick={() => { setSelectedItem(item.id); setNewQuestion('') }}
+                        className="ml-auto text-xs text-blue-600 hover:underline"
+                      >
+                        Raise enquiry
+                      </button>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setSelectedItem(item.id)}
-                    className="mt-2 text-xs text-blue-600 hover:underline"
-                  >
-                    Raise enquiry about this item
-                  </button>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         ))}
@@ -165,13 +263,25 @@ export default function BuyerReviewPage() {
                 <button onClick={() => setSelectedItem(null)} className="underline">clear</button>
               </p>
             )}
-            <button
-              onClick={raiseEnquiry}
-              disabled={!newQuestion.trim()}
-              className="mt-2 bg-blue-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-800 disabled:opacity-40"
-            >
-              Send Enquiry
-            </button>
+            <div className="flex items-center justify-between mt-2 flex-wrap gap-2">
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={sendToAgent}
+                  onChange={(e) => setSendToAgent(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-gray-300"
+                />
+                Send to Estate Agent
+                <span className="text-gray-400">(otherwise goes to conveyancer)</span>
+              </label>
+              <button
+                onClick={raiseEnquiry}
+                disabled={!newQuestion.trim()}
+                className="bg-blue-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-800 disabled:opacity-40"
+              >
+                Send Enquiry
+              </button>
+            </div>
           </div>
 
           <div className="space-y-3">
@@ -191,6 +301,9 @@ export default function BuyerReviewPage() {
                 )}
               </div>
             ))}
+            {enquiries.length === 0 && (
+              <p className="text-sm text-gray-400 italic text-center py-4">No enquiries yet</p>
+            )}
           </div>
         </div>
 

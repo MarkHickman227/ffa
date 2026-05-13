@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { ItemStatus, ItemType } from '@prisma/client'
+import { useParams } from 'next/navigation'
+import { ItemStatus, ItemType, RiskFlag } from '@prisma/client'
 
 type Screen = 'welcome' | 'rooms' | 'items' | 'review' | 'legal' | 'confirmation'
 
@@ -27,6 +27,20 @@ const ITEM_TYPES: { value: ItemType; label: string }[] = [
   { value: ItemType.OTHER, label: 'Other' },
 ]
 
+const RISK_OPTIONS: { value: RiskFlag; label: string }[] = [
+  { value: RiskFlag.NONE, label: 'No risk' },
+  { value: RiskFlag.LOW, label: 'Low risk' },
+  { value: RiskFlag.MEDIUM, label: 'Medium risk' },
+  { value: RiskFlag.HIGH, label: 'High risk' },
+]
+
+const RISK_COLOUR: Record<RiskFlag, string> = {
+  NONE: 'bg-gray-100 text-gray-500',
+  LOW: 'bg-blue-50 text-blue-700',
+  MEDIUM: 'bg-amber-50 text-amber-700',
+  HIGH: 'bg-red-50 text-red-700',
+}
+
 const LEGAL_TEXT =
   'I confirm that the information provided in this TA10 Fixtures and Fittings form is accurate and complete to the best of my knowledge. I understand that this forms part of the legal contract for the sale of the property and that providing false information may constitute misrepresentation under the Misrepresentation Act 1967.'
 
@@ -36,15 +50,16 @@ interface FixturesItem {
   description: string
   itemType: ItemType
   status: ItemStatus
+  riskFlag: RiskFlag
   estimatedValue?: number
   notes?: string
   photoUrls: string[]
+  signedPhotoUrls: string[]
 }
 
 export default function SellerFormPage() {
   const params = useParams()
   const txId = params?.txId as string
-  const router = useRouter()
   const [screen, setScreen] = useState<Screen>('welcome')
   const [selectedRooms, setSelectedRooms] = useState<string[]>([])
   const [currentRoom, setCurrentRoom] = useState<string>('')
@@ -53,33 +68,88 @@ export default function SellerFormPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null)
+  const [deletingPhoto, setDeletingPhoto] = useState<string | null>(null)
   const autoSaveRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Auto-save every 60 seconds on the items screen
+  useEffect(() => {
+    fetch(`/api/transactions/${txId}/fixtures`)
+      .then((r) => r.json())
+      .then((existing: any[]) => {
+        if (!Array.isArray(existing) || existing.length === 0) return
+        const mapped = existing.map((i) => ({
+          id: i.id as string,
+          room: i.room as string,
+          description: i.description as string,
+          itemType: i.itemType as ItemType,
+          status: i.status as ItemStatus,
+          riskFlag: (i.riskFlag ?? RiskFlag.NONE) as RiskFlag,
+          estimatedValue: i.estimatedValue != null ? Number(i.estimatedValue) : undefined,
+          notes: i.notes ?? undefined,
+          photoUrls: (i.photoUrls ?? []) as string[],
+          signedPhotoUrls: (i.signedPhotoUrls ?? []) as string[],
+        }))
+        setItems(mapped)
+        const rooms = [...new Set(mapped.map((i) => i.room))] as string[]
+        setSelectedRooms(rooms)
+        setCurrentRoom(rooms[0])
+        setScreen('items')
+      })
+      .catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [txId])
+
   useEffect(() => {
     if (screen === 'items') {
-      autoSaveRef.current = setInterval(async () => {
-        await saveItems(true)
-      }, 60_000)
+      autoSaveRef.current = setInterval(async () => { await saveItems(true) }, 60_000)
     } else {
       if (autoSaveRef.current) clearInterval(autoSaveRef.current)
     }
     return () => { if (autoSaveRef.current) clearInterval(autoSaveRef.current) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screen, items])
 
   async function saveItems(silent = false) {
-    for (const item of items.filter((i) => !i.id)) {
-      const res = await fetch(`/api/transactions/${txId}/fixtures`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(item),
-      })
-      if (res.ok) {
-        const created = await res.json()
-        setItems((prev) => prev.map((i) => (i === item ? { ...i, id: created.id } : i)))
+    for (const item of items) {
+      if (!item.id) {
+        const res = await fetch(`/api/transactions/${txId}/fixtures`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            room: item.room, description: item.description,
+            itemType: item.itemType, status: item.status,
+            riskFlag: item.riskFlag,
+            estimatedValue: item.estimatedValue, notes: item.notes,
+            photoUrls: item.photoUrls ?? [],
+          }),
+        })
+        if (res.ok) {
+          const created = await res.json()
+          setItems((prev) => prev.map((i) => (i === item ? { ...i, id: created.id } : i)))
+        }
+      } else {
+        await fetch(`/api/transactions/${txId}/fixtures/${item.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            description: item.description,
+            itemType: item.itemType,
+            status: item.status,
+            riskFlag: item.riskFlag,
+            estimatedValue: item.estimatedValue ?? null,
+            notes: item.notes ?? null,
+          }),
+        })
       }
     }
     if (!silent) console.log('Saved')
+  }
+
+  async function deleteItem(globalIdx: number) {
+    const item = items[globalIdx]
+    if (item.id) {
+      await fetch(`/api/transactions/${txId}/fixtures/${item.id}`, { method: 'DELETE' })
+    }
+    setItems((prev) => prev.filter((_, gi) => gi !== globalIdx))
   }
 
   async function handleSubmit() {
@@ -109,7 +179,7 @@ export default function SellerFormPage() {
   function addItem(room: string) {
     setItems((prev) => [
       ...prev,
-      { room, description: '', itemType: ItemType.FIXTURE, status: ItemStatus.INCLUDED, photoUrls: [] },
+      { room, description: '', itemType: ItemType.FIXTURE, status: ItemStatus.INCLUDED, riskFlag: RiskFlag.NONE, photoUrls: [], signedPhotoUrls: [] },
     ])
   }
 
@@ -124,7 +194,6 @@ export default function SellerFormPage() {
     }
     setUploadingIdx(globalIdx)
     try {
-      // Ensure item is saved to DB so it has an ID
       let itemId = item.id
       if (!itemId) {
         const res = await fetch(`/api/transactions/${txId}/fixtures`, {
@@ -133,8 +202,7 @@ export default function SellerFormPage() {
           body: JSON.stringify({
             room: item.room, description: item.description,
             itemType: item.itemType, status: item.status,
-            estimatedValue: item.estimatedValue, notes: item.notes,
-            photoUrls: [],
+            riskFlag: item.riskFlag, photoUrls: [],
           }),
         })
         if (!res.ok) throw new Error('Could not save item')
@@ -142,7 +210,6 @@ export default function SellerFormPage() {
         itemId = created.id
         setItems((prev) => prev.map((i, gi) => gi === globalIdx ? { ...i, id: created.id } : i))
       }
-      // Upload each file
       const newKeys: string[] = []
       for (const file of Array.from(files)) {
         const fd = new FormData()
@@ -151,17 +218,19 @@ export default function SellerFormPage() {
         if (res.ok) { const { key } = await res.json(); newKeys.push(key) }
       }
       if (newKeys.length > 0) {
-        setItems((prev) => {
-          const current = prev[globalIdx]
-          const updated = [...(current.photoUrls ?? []), ...newKeys]
-          // PATCH item in DB
-          fetch(`/api/transactions/${txId}/fixtures/${itemId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ photoUrls: updated }),
-          })
-          return prev.map((i, gi) => gi === globalIdx ? { ...i, photoUrls: updated } : i)
+        const updatedKeys = [...(item.photoUrls ?? []), ...newKeys]
+        await fetch(`/api/transactions/${txId}/fixtures/${itemId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ photoUrls: updatedKeys }),
         })
+        // Re-fetch to get fresh signed URLs
+        const fresh = await fetch(`/api/transactions/${txId}/fixtures`).then((r) => r.json())
+        setItems((prev) => prev.map((it, gi) => {
+          const freshItem = (fresh as any[]).find((f: any) => f.id === it.id)
+          if (!freshItem) return it
+          return { ...it, photoUrls: freshItem.photoUrls, signedPhotoUrls: freshItem.signedPhotoUrls ?? [] }
+        }))
       }
     } catch (err: any) {
       alert(err.message ?? 'Photo upload failed')
@@ -171,9 +240,31 @@ export default function SellerFormPage() {
     }
   }
 
+  async function deletePhoto(globalIdx: number, photoIdx: number) {
+    const item = items[globalIdx]
+    if (!item.id) return
+    const key = item.photoUrls[photoIdx]
+    setDeletingPhoto(key)
+    try {
+      const updatedKeys = item.photoUrls.filter((_, i) => i !== photoIdx)
+      await fetch(`/api/transactions/${txId}/fixtures/${item.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photoUrls: updatedKeys }),
+      })
+      setItems((prev) => prev.map((it, gi) => gi === globalIdx
+        ? { ...it, photoUrls: updatedKeys, signedPhotoUrls: it.signedPhotoUrls.filter((_, i) => i !== photoIdx) }
+        : it
+      ))
+    } finally {
+      setDeletingPhoto(null)
+    }
+  }
+
   const roomItems = (room: string) => items.filter((i) => i.room === room)
 
-  // ── Screens ────────────────────────────────────────────────────────────────
+  // ── Screens ───────────────────────────────────────────────────────────────
+
   if (screen === 'welcome') {
     return (
       <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -244,8 +335,9 @@ export default function SellerFormPage() {
     return (
       <main className="min-h-screen bg-slate-50 p-4">
         <div className="max-w-2xl mx-auto">
+          {/* Room tabs */}
           <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
-            {selectedRooms.map((room, i) => (
+            {selectedRooms.map((room) => (
               <button
                 key={room}
                 onClick={() => setCurrentRoom(room)}
@@ -260,12 +352,20 @@ export default function SellerFormPage() {
 
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold text-gray-900">{currentRoom}</h2>
-            <button
-              onClick={() => addItem(currentRoom)}
-              className="bg-blue-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-800"
-            >
-              + Add Item
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => window.open(`/seller/${txId}/print`, '_blank')}
+                className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50"
+              >
+                Print / PDF
+              </button>
+              <button
+                onClick={() => addItem(currentRoom)}
+                className="bg-blue-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-800"
+              >
+                + Add Item
+              </button>
+            </div>
           </div>
 
           <div className="space-y-4 mb-6">
@@ -274,12 +374,15 @@ export default function SellerFormPage() {
               return (
                 <div key={idx} className="bg-white rounded-xl border p-4 shadow-sm">
                   <div className="grid gap-3">
+                    {/* Description */}
                     <input
                       placeholder="Description (e.g. Integrated dishwasher)"
                       value={item.description}
                       onChange={(e) => setItems((prev) => prev.map((i, gi) => gi === globalIdx ? { ...i, description: e.target.value } : i))}
                       className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
+
+                    {/* Type + Status */}
                     <div className="grid grid-cols-2 gap-2">
                       <select
                         value={item.itemType}
@@ -293,32 +396,82 @@ export default function SellerFormPage() {
                         onChange={(e) => setItems((prev) => prev.map((i, gi) => gi === globalIdx ? { ...i, status: e.target.value as ItemStatus } : i))}
                         className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
-                        <option value="INCLUDED">Included</option>
-                        <option value="EXCLUDED">Excluded</option>
+                        <option value="INCLUDED">Included in sale</option>
+                        <option value="EXCLUDED">Excluded from sale</option>
                         <option value="NEGOTIABLE">Negotiable</option>
-                        <option value="REMOVED_PRIOR">Removed Prior</option>
+                        <option value="REMOVED_PRIOR">Removed prior to sale</option>
                       </select>
                     </div>
-                    <input
-                      type="number"
-                      placeholder="Estimated value (£)"
-                      value={item.estimatedValue ?? ''}
-                      onChange={(e) => setItems((prev) => prev.map((i, gi) => gi === globalIdx ? { ...i, estimatedValue: Number(e.target.value) || undefined } : i))}
-                      className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <textarea
-                      placeholder="Notes (optional)"
-                      value={item.notes ?? ''}
-                      rows={2}
-                      onChange={(e) => setItems((prev) => prev.map((i, gi) => gi === globalIdx ? { ...i, notes: e.target.value } : i))}
-                      className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                    />
-                    {/* Photo upload */}
-                    <div className="flex items-center gap-3 pt-1">
-                      <label className={`cursor-pointer text-xs font-medium px-3 py-1.5 rounded-lg border transition ${
+
+                    {/* Risk flag */}
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-medium text-gray-500 w-16 flex-shrink-0">Risk flag:</label>
+                      <div className="flex gap-1.5 flex-wrap">
+                        {RISK_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setItems((prev) => prev.map((i, gi) => gi === globalIdx ? { ...i, riskFlag: opt.value } : i))}
+                            className={`px-2.5 py-1 rounded-full text-xs font-medium border transition ${
+                              item.riskFlag === opt.value
+                                ? RISK_COLOUR[opt.value] + ' border-current ring-1 ring-current'
+                                : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Value + Notes */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="number"
+                        placeholder="Estimated value (£)"
+                        value={item.estimatedValue ?? ''}
+                        onChange={(e) => setItems((prev) => prev.map((i, gi) => gi === globalIdx ? { ...i, estimatedValue: Number(e.target.value) || undefined } : i))}
+                        className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <textarea
+                        placeholder="Notes (optional)"
+                        value={item.notes ?? ''}
+                        rows={1}
+                        onChange={(e) => setItems((prev) => prev.map((i, gi) => gi === globalIdx ? { ...i, notes: e.target.value } : i))}
+                        className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      />
+                    </div>
+
+                    {/* Photos */}
+                    <div className="pt-1">
+                      {item.signedPhotoUrls.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {item.signedPhotoUrls.map((url, pi) => (
+                            <div key={pi} className="relative group">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={url}
+                                alt={`Photo ${pi + 1}`}
+                                className="w-20 h-16 object-cover rounded border border-gray-200 cursor-pointer hover:opacity-90"
+                                onClick={() => window.open(url, '_blank')}
+                              />
+                              <button
+                                type="button"
+                                disabled={deletingPhoto === item.photoUrls[pi]}
+                                onClick={() => deletePhoto(globalIdx, pi)}
+                                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-600 transition"
+                                title="Remove photo"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <label className={`cursor-pointer inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition ${
                         uploadingIdx === globalIdx ? 'opacity-50 pointer-events-none' : 'border-gray-300 text-gray-600 hover:bg-gray-50'
                       }`}>
-                        {uploadingIdx === globalIdx ? 'Uploading…' : '+ Add photos'}
+                        {uploadingIdx === globalIdx ? 'Uploading…' : item.signedPhotoUrls.length > 0 ? '+ Add more photos' : '+ Add photos'}
                         <input
                           type="file"
                           accept="image/*"
@@ -328,24 +481,28 @@ export default function SellerFormPage() {
                           disabled={uploadingIdx !== null}
                         />
                       </label>
-                      {(item.photoUrls ?? []).length > 0 && (
-                        <span className="text-xs text-green-700 font-medium">
-                          {item.photoUrls.length} photo{item.photoUrls.length !== 1 ? 's' : ''} attached
-                        </span>
-                      )}
                     </div>
                   </div>
-                  <button
-                    onClick={() => setItems((prev) => prev.filter((_, gi) => gi !== globalIdx))}
-                    className="mt-2 text-xs text-red-500 hover:text-red-700"
-                  >
-                    Remove item
-                  </button>
+
+                  {/* Delete item */}
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm('Remove this item?')) deleteItem(globalIdx)
+                      }}
+                      className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition"
+                    >
+                      Delete item
+                    </button>
+                  </div>
                 </div>
               )
             })}
             {roomItems(currentRoom).length === 0 && (
-              <p className="text-gray-400 text-sm italic text-center py-8">No items added yet</p>
+              <p className="text-gray-400 text-sm italic text-center py-8">
+                No items yet — click &quot;+ Add Item&quot; to start
+              </p>
             )}
           </div>
 
@@ -355,7 +512,7 @@ export default function SellerFormPage() {
                 onClick={() => setCurrentRoom(selectedRooms[roomIdx - 1])}
                 className="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-50"
               >
-                Previous Room
+                ← Previous Room
               </button>
             )}
             {roomIdx < selectedRooms.length - 1 ? (
@@ -363,14 +520,14 @@ export default function SellerFormPage() {
                 onClick={() => setCurrentRoom(selectedRooms[roomIdx + 1])}
                 className="flex-1 bg-blue-900 text-white py-3 rounded-lg font-semibold hover:bg-blue-800"
               >
-                Next Room
+                Next Room →
               </button>
             ) : (
               <button
                 onClick={() => setScreen('review')}
                 className="flex-1 bg-blue-900 text-white py-3 rounded-lg font-semibold hover:bg-blue-800"
               >
-                Review Summary
+                Review Summary →
               </button>
             )}
           </div>
@@ -383,36 +540,62 @@ export default function SellerFormPage() {
     return (
       <main className="min-h-screen bg-slate-50 p-4">
         <div className="max-w-2xl mx-auto">
-          <h1 className="text-xl font-bold text-gray-900 mb-1">Review Your Form</h1>
-          <p className="text-gray-500 text-sm mb-6">{items.length} item(s) across {selectedRooms.length} room(s)</p>
-
-          {selectedRooms.map((room) => (
-            <div key={room} className="mb-6">
-              <h2 className="font-semibold text-gray-800 mb-2">{room}</h2>
-              {roomItems(room).length === 0 ? (
-                <p className="text-gray-400 text-sm italic">No items</p>
-              ) : (
-                <table className="w-full text-sm border rounded-lg overflow-hidden">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="text-left px-3 py-2">Description</th>
-                      <th className="text-left px-3 py-2">Status</th>
-                      <th className="text-left px-3 py-2">Value</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {roomItems(room).map((item, i) => (
-                      <tr key={i} className="border-t">
-                        <td className="px-3 py-2">{item.description || <span className="text-red-400 italic">Missing</span>}</td>
-                        <td className="px-3 py-2">{item.status}</td>
-                        <td className="px-3 py-2">{item.estimatedValue ? `£${item.estimatedValue}` : '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+          <div className="flex items-start justify-between mb-2 flex-wrap gap-3">
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Review Your Form</h1>
+              <p className="text-gray-500 text-sm">{items.length} item(s) across {selectedRooms.length} room(s)</p>
             </div>
-          ))}
+            <button
+              onClick={() => window.open(`/seller/${txId}/print`, '_blank')}
+              className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50"
+            >
+              Print / Save as PDF
+            </button>
+          </div>
+
+          <div className="mb-6 mt-6">
+            {selectedRooms.map((room) => (
+              <div key={room} className="mb-5">
+                <h2 className="font-semibold text-gray-800 mb-2">{room}</h2>
+                {roomItems(room).length === 0 ? (
+                  <p className="text-gray-400 text-sm italic">No items</p>
+                ) : (
+                  <div className="space-y-2">
+                    {roomItems(room).map((item, i) => (
+                      <div key={i} className="bg-white border rounded-xl p-3 text-sm">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">{item.description || <span className="text-red-400 italic">Missing description</span>}</p>
+                            {item.notes && <p className="text-xs text-gray-400 mt-0.5">{item.notes}</p>}
+                            {item.signedPhotoUrls.length > 0 && (
+                              <div className="flex gap-1.5 mt-2 flex-wrap">
+                                {item.signedPhotoUrls.map((url, pi) => (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img key={pi} src={url} alt="" className="w-14 h-11 object-cover rounded border border-gray-200" />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                              item.status === 'INCLUDED' ? 'bg-green-50 text-green-700' :
+                              item.status === 'EXCLUDED' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'
+                            }`}>{item.status}</span>
+                            {item.riskFlag !== RiskFlag.NONE && (
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${RISK_COLOUR[item.riskFlag]}`}>
+                                {item.riskFlag} RISK
+                              </span>
+                            )}
+                            {item.estimatedValue && <span className="text-xs text-gray-500">£{item.estimatedValue}</span>}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
 
           <div className="flex gap-3">
             <button onClick={() => setScreen('items')} className="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg">
@@ -464,7 +647,6 @@ export default function SellerFormPage() {
     )
   }
 
-  // Confirmation
   return (
     <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="max-w-lg w-full bg-white rounded-xl shadow p-8 text-center">
@@ -477,7 +659,12 @@ export default function SellerFormPage() {
         <p className="text-gray-600 mb-6">
           Your Fixtures & Fittings form has been submitted. Your conveyancer and the buyer will be notified.
         </p>
-        <p className="text-sm text-gray-400">You can close this page.</p>
+        <button
+          onClick={() => window.open(`/seller/${txId}/print`, '_blank')}
+          className="text-sm text-blue-600 hover:underline"
+        >
+          Print / save a copy of your submission
+        </button>
       </div>
     </main>
   )
