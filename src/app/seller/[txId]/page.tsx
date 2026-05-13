@@ -38,6 +38,7 @@ interface FixturesItem {
   status: ItemStatus
   estimatedValue?: number
   notes?: string
+  photoUrls: string[]
 }
 
 export default function SellerFormPage() {
@@ -51,6 +52,7 @@ export default function SellerFormPage() {
   const [legalAgreed, setLegalAgreed] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null)
   const autoSaveRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Auto-save every 60 seconds on the items screen
@@ -107,8 +109,66 @@ export default function SellerFormPage() {
   function addItem(room: string) {
     setItems((prev) => [
       ...prev,
-      { room, description: '', itemType: ItemType.FIXTURE, status: ItemStatus.INCLUDED },
+      { room, description: '', itemType: ItemType.FIXTURE, status: ItemStatus.INCLUDED, photoUrls: [] },
     ])
+  }
+
+  async function handlePhotoUpload(globalIdx: number, e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+    const item = items[globalIdx]
+    if (!item.description.trim()) {
+      alert('Add a description first before uploading photos.')
+      e.target.value = ''
+      return
+    }
+    setUploadingIdx(globalIdx)
+    try {
+      // Ensure item is saved to DB so it has an ID
+      let itemId = item.id
+      if (!itemId) {
+        const res = await fetch(`/api/transactions/${txId}/fixtures`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            room: item.room, description: item.description,
+            itemType: item.itemType, status: item.status,
+            estimatedValue: item.estimatedValue, notes: item.notes,
+            photoUrls: [],
+          }),
+        })
+        if (!res.ok) throw new Error('Could not save item')
+        const created = await res.json()
+        itemId = created.id
+        setItems((prev) => prev.map((i, gi) => gi === globalIdx ? { ...i, id: created.id } : i))
+      }
+      // Upload each file
+      const newKeys: string[] = []
+      for (const file of Array.from(files)) {
+        const fd = new FormData()
+        fd.append('file', file)
+        const res = await fetch(`/api/transactions/${txId}/photos`, { method: 'POST', body: fd })
+        if (res.ok) { const { key } = await res.json(); newKeys.push(key) }
+      }
+      if (newKeys.length > 0) {
+        setItems((prev) => {
+          const current = prev[globalIdx]
+          const updated = [...(current.photoUrls ?? []), ...newKeys]
+          // PATCH item in DB
+          fetch(`/api/transactions/${txId}/fixtures/${itemId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ photoUrls: updated }),
+          })
+          return prev.map((i, gi) => gi === globalIdx ? { ...i, photoUrls: updated } : i)
+        })
+      }
+    } catch (err: any) {
+      alert(err.message ?? 'Photo upload failed')
+    } finally {
+      setUploadingIdx(null)
+      e.target.value = ''
+    }
   }
 
   const roomItems = (room: string) => items.filter((i) => i.room === room)
@@ -253,6 +313,27 @@ export default function SellerFormPage() {
                       onChange={(e) => setItems((prev) => prev.map((i, gi) => gi === globalIdx ? { ...i, notes: e.target.value } : i))}
                       className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                     />
+                    {/* Photo upload */}
+                    <div className="flex items-center gap-3 pt-1">
+                      <label className={`cursor-pointer text-xs font-medium px-3 py-1.5 rounded-lg border transition ${
+                        uploadingIdx === globalIdx ? 'opacity-50 pointer-events-none' : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                      }`}>
+                        {uploadingIdx === globalIdx ? 'Uploading…' : '+ Add photos'}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          onChange={(e) => handlePhotoUpload(globalIdx, e)}
+                          disabled={uploadingIdx !== null}
+                        />
+                      </label>
+                      {(item.photoUrls ?? []).length > 0 && (
+                        <span className="text-xs text-green-700 font-medium">
+                          {item.photoUrls.length} photo{item.photoUrls.length !== 1 ? 's' : ''} attached
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <button
                     onClick={() => setItems((prev) => prev.filter((_, gi) => gi !== globalIdx))}

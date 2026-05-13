@@ -14,7 +14,7 @@ const CreateItemSchema = z.object({
   status: z.nativeEnum(ItemStatus).default(ItemStatus.INCLUDED),
   estimatedValue: z.number().nonnegative().optional(),
   notes: z.string().max(5000).optional(),
-  photoUrls: z.array(z.string().url()).max(10).default([]),
+  photoUrls: z.array(z.string()).max(10).default([]),
   sortOrder: z.number().int().default(0),
 })
 

@@ -30,7 +30,6 @@ export default function ConveyancerDashboard() {
   const [enquiries, setEnquiries] = useState<Enquiry[]>([])
   const [loading, setLoading] = useState(true)
   const [dismissReason, setDismissReason] = useState<Record<string, string>>({})
-  const [exportStatus, setExportStatus] = useState<string | null>(null)
   const [answerText, setAnswerText] = useState<Record<string, string>>({})
 
   useEffect(() => {
@@ -72,11 +71,8 @@ export default function ConveyancerDashboard() {
     }
   }
 
-  async function requestPdf() {
-    setExportStatus('queuing…')
-    const res = await fetch(`/api/transactions/${txId}/pdf`, { method: 'POST' })
-    if (res.ok) { const { jobId } = await res.json(); setExportStatus(`Job queued — ID: ${jobId}. PDF will be ready shortly.`) }
-    else setExportStatus('Export failed')
+  function openPrint() {
+    window.open(`/conveyancer/${txId}/print`, '_blank')
   }
 
   const tabs: { id: Tab; label: string; count?: number }[] = [
@@ -272,22 +268,22 @@ export default function ConveyancerDashboard() {
         {/* ── Export PDF ────────────────────────────────────────── */}
         {tab === 'export' && (
           <div className="bg-white rounded-xl border shadow-sm p-8 max-w-md">
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">Export TA10 PDF</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">Print / Save TA10</h2>
             <p className="text-sm text-gray-500 mb-6">
-              Generates a signed PDF containing all fixtures items, legal acknowledgement, and buyer acceptance.
-              The download link will be valid for 24 hours.
+              Opens the full TA10 document — including all fixtures items, photos, legal acknowledgement,
+              and buyer acceptance — in a new window ready to print or save as PDF.
             </p>
-            {exportStatus && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-4 text-sm text-blue-800">
-                {exportStatus}
-              </div>
-            )}
-            <button
-              onClick={requestPdf}
-              className="w-full bg-blue-900 text-white py-3 rounded-lg font-semibold hover:bg-blue-800 transition"
-            >
-              Generate PDF
-            </button>
+            <div className="space-y-3">
+              <button
+                onClick={openPrint}
+                className="w-full bg-blue-900 text-white py-3 rounded-lg font-semibold hover:bg-blue-800 transition"
+              >
+                Open Print View
+              </button>
+              <p className="text-xs text-gray-400 text-center">
+                In the print window: choose your printer, or select &ldquo;Save as PDF&rdquo; in the print dialog.
+              </p>
+            </div>
           </div>
         )}
       </div>
