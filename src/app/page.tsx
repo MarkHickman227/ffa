@@ -1,13 +1,46 @@
+import { getServerSession } from '@/lib/auth'
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
 
-export default function HomePage() {
+export const dynamic = 'force-dynamic'
+
+export default async function HomePage() {
+  const session = await getServerSession()
+  const role = (session?.user as any)?.role as string | undefined
+
+  if (role === 'CONVEYANCER') redirect('/conveyancer')
+  if (role === 'ADMIN') redirect('/admin')
+  if (role === 'AGENT') redirect('/agent')
+
+  if (role === 'SELLER' || role === 'BUYER' || role === 'SURVEYOR') {
+    return (
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="max-w-lg w-full bg-white rounded-xl shadow p-8 text-center">
+          <div className="w-12 h-12 bg-blue-900 rounded-lg flex items-center justify-center mb-6 mx-auto">
+            <span className="text-white font-bold text-lg">FFA</span>
+          </div>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">
+            Welcome, {session?.user?.name}
+          </h1>
+          <p className="text-gray-600 mb-6">
+            You are signed in as a <strong>{role.charAt(0) + role.slice(1).toLowerCase()}</strong>.
+            Use the link sent to you by your conveyancer to access your transaction.
+          </p>
+          <Link href="/auth/signin" className="text-sm text-gray-400 hover:underline">
+            Sign in with a different account
+          </Link>
+        </div>
+      </main>
+    )
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="max-w-lg w-full bg-white rounded-xl shadow p-8">
         <div className="w-12 h-12 bg-blue-900 rounded-lg flex items-center justify-center mb-6">
           <span className="text-white font-bold text-lg">FFA</span>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Fixtures & Fittings Assurance</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Fixtures &amp; Fittings Assurance</h1>
         <p className="text-gray-600 mb-8">
           The UK&apos;s digital TA10 platform for sellers, buyers, conveyancers, agents, and surveyors.
         </p>

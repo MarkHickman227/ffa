@@ -41,11 +41,17 @@ export default withAuth(
 
 export const config = {
   matcher: [
+    '/seller',
     '/seller/:path*',
+    '/buyer',
     '/buyer/:path*',
+    '/conveyancer',
     '/conveyancer/:path*',
+    '/agent',
     '/agent/:path*',
+    '/surveyor',
     '/surveyor/:path*',
+    '/admin',
     '/admin/:path*',
     '/api/transactions/:path*',
     '/api/gdpr/:path*',
