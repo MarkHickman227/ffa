@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { withRBAC } from '@/lib/rbac'
 import { writeAuditLog } from '@/lib/audit'
 import { sendEmail } from '@/lib/email'
+import { EnquiryRouting } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getServerSession } from '@/lib/auth'
@@ -9,6 +10,7 @@ import { getServerSession } from '@/lib/auth'
 const CreateEnquirySchema = z.object({
   question: z.string().min(1).max(2000),
   fixturesItemId: z.string().uuid().optional(),
+  routing: z.nativeEnum(EnquiryRouting).optional(),
 })
 
 export const GET = withRBAC('buyer_form:read', async (_req, { params }) => {
@@ -37,6 +39,7 @@ export const POST = withRBAC('enquiry:raise', async (req: NextRequest, { params 
       raisedByUserId: session!.user.id,
       fixturesItemId: parsed.data.fixturesItemId ?? null,
       question: parsed.data.question,
+      routing: parsed.data.routing ?? EnquiryRouting.SELLER_CONVEYANCER,
     },
   })
 
@@ -44,7 +47,7 @@ export const POST = withRBAC('enquiry:raise', async (req: NextRequest, { params 
     eventType: 'ENQUIRY_RAISED',
     transactionId: params.id,
     userId: session!.user.id,
-    eventData: { enquiryId: enquiry.id },
+    eventData: { enquiryId: enquiry.id, routing: enquiry.routing },
   })
 
   await sendEmail({

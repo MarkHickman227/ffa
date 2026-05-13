@@ -14,7 +14,7 @@ const AcceptSchema = z.object({
 })
 
 const ACCEPTANCE_TEXT =
-  'I confirm that I have reviewed the Fixtures & Fittings schedule and accept it as part of my purchase of the above property. I understand that this acceptance is legally binding and forms part of the contract of sale.'
+  'I confirm that I have reviewed the fixtures and fittings list for this property and I formally accept this list as part of the contract for purchase. I understand that the items listed as included form part of my purchase and any items listed as excluded do not. I acknowledge that this acceptance has been recorded at the date and time shown and at the list version stated above.'
 
 export const POST = withRBAC('buyer_form:accept', async (req: NextRequest, { params }) => {
   const body = await req.json()

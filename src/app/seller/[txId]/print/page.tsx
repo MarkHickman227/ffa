@@ -75,9 +75,13 @@ export default async function SellerPrintPage({ params }: { params: { txId: stri
           .legal { background: #fffbeb; border: 1px solid #fde68a; padding: 8px 12px; border-radius: 4px; font-size: 10px; margin-top: 16px; }
           .risk { font-size: 9px; font-weight: 600; }
           .sig-line { border-top: 1px solid #aaa; margin-top: 28px; padding-top: 4px; width: 60%; font-size: 10px; color: #666; }
+          .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-45deg);
+            font-size: 120px; font-weight: 900; color: rgba(220,38,38,0.12); pointer-events: none;
+            white-space: nowrap; z-index: 0; }
         `}</style>
       </head>
       <body>
+        {tx.status === 'DRAFT' || tx.status === 'SELLER_FORM_IN_PROGRESS' ? <div className="watermark">DRAFT</div> : null}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
           <div>
             <h1>TA10 Fixtures &amp; Fittings</h1>
@@ -155,8 +159,11 @@ export default async function SellerPrintPage({ params }: { params: { txId: stri
 
         <div className="legal">
           <strong>Seller Declaration: </strong>
-          I confirm that the information provided in this TA10 Fixtures and Fittings form is accurate and complete to the best of my knowledge.
-          I understand that this forms part of the legal contract for the sale of the property.
+          I confirm that the information I have provided in this fixtures and fittings form is accurate and complete
+          to the best of my knowledge and belief. I understand that this information will form part of the contract
+          for the sale of the property and that I may be legally liable for any inaccuracies. I acknowledge that
+          this declaration has been made at the date and time recorded by the platform and from the device
+          identified by my IP address.
         </div>
 
         <div className="sig-line">Seller signature &amp; date</div>

@@ -62,6 +62,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Action[]> = {
     'seller_form:read',
     'agent:read',
     'agent:reconcile',
+    'enquiry:answer',
   ],
   [UserRole.SURVEYOR]: [
     'transaction:read',

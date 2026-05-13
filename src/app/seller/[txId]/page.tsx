@@ -2,14 +2,29 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { ItemStatus, ItemType, RiskFlag } from '@prisma/client'
+import { ItemStatus, ItemType } from '@prisma/client'
 
-type Screen = 'welcome' | 'rooms' | 'items' | 'review' | 'legal' | 'confirmation'
+type Screen = 'welcome' | 'rooms' | 'items' | 'review' | 'legal' | 'confirmation' | 'submitted'
 
 const TA10_ROOMS = [
   'Kitchen', 'Living Room', 'Dining Room', 'Master Bedroom',
   'Bedroom 2', 'Bedroom 3', 'Bathroom', 'En-suite',
   'Hallway', 'Garden', 'Garage', 'Loft / Attic',
+]
+
+const TA10_CATEGORIES = [
+  'Basic Fittings',
+  'Kitchen',
+  'Bathroom',
+  'Decorative Fittings',
+  'TV / Telephone / Broadband',
+  'Light Fittings',
+  'Garden Items',
+  'Outdoor Buildings & Swimming Pools',
+  'Central Heating',
+  'Fitted Carpets',
+  'Electrical Appliances',
+  'Other',
 ]
 
 const ITEM_TYPES: { value: ItemType; label: string }[] = [
@@ -27,22 +42,8 @@ const ITEM_TYPES: { value: ItemType; label: string }[] = [
   { value: ItemType.OTHER, label: 'Other' },
 ]
 
-const RISK_OPTIONS: { value: RiskFlag; label: string }[] = [
-  { value: RiskFlag.NONE, label: 'No risk' },
-  { value: RiskFlag.LOW, label: 'Low risk' },
-  { value: RiskFlag.MEDIUM, label: 'Medium risk' },
-  { value: RiskFlag.HIGH, label: 'High risk' },
-]
-
-const RISK_COLOUR: Record<RiskFlag, string> = {
-  NONE: 'bg-gray-100 text-gray-500',
-  LOW: 'bg-blue-50 text-blue-700',
-  MEDIUM: 'bg-amber-50 text-amber-700',
-  HIGH: 'bg-red-50 text-red-700',
-}
-
 const LEGAL_TEXT =
-  'I confirm that the information provided in this TA10 Fixtures and Fittings form is accurate and complete to the best of my knowledge. I understand that this forms part of the legal contract for the sale of the property and that providing false information may constitute misrepresentation under the Misrepresentation Act 1967.'
+  'I confirm that the information I have provided in this fixtures and fittings form is accurate and complete to the best of my knowledge and belief. I understand that this information will form part of the contract for the sale of the property and that I may be legally liable for any inaccuracies. I acknowledge that this declaration has been made at the date and time recorded by the platform and from the device identified by my IP address.'
 
 interface FixturesItem {
   id?: string
@@ -50,7 +51,8 @@ interface FixturesItem {
   description: string
   itemType: ItemType
   status: ItemStatus
-  riskFlag: RiskFlag
+  category?: string
+  salePrice?: number
   estimatedValue?: number
   notes?: string
   photoUrls: string[]
@@ -72,31 +74,48 @@ export default function SellerFormPage() {
   const autoSaveRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
-    fetch(`/api/transactions/${txId}/fixtures`)
-      .then((r) => r.json())
-      .then((existing: any[]) => {
-        if (!Array.isArray(existing) || existing.length === 0) return
-        const mapped = existing.map((i) => ({
-          id: i.id as string,
-          room: i.room as string,
-          description: i.description as string,
-          itemType: i.itemType as ItemType,
-          status: i.status as ItemStatus,
-          riskFlag: (i.riskFlag ?? RiskFlag.NONE) as RiskFlag,
-          estimatedValue: i.estimatedValue != null ? Number(i.estimatedValue) : undefined,
-          notes: i.notes ?? undefined,
-          photoUrls: (i.photoUrls ?? []) as string[],
-          signedPhotoUrls: (i.signedPhotoUrls ?? []) as string[],
-        }))
-        setItems(mapped)
-        const rooms = [...new Set(mapped.map((i) => i.room))] as string[]
-        setSelectedRooms(rooms)
-        setCurrentRoom(rooms[0])
-        setScreen('items')
-      })
-      .catch(() => {})
+    Promise.all([
+      fetch(`/api/transactions/${txId}/fixtures`).then((r) => r.json()),
+      fetch(`/api/transactions/${txId}`).then((r) => r.ok ? r.json() : null),
+    ]).then(([existing, tx]) => {
+      // If already submitted, show read-only view
+      if (tx?.status && !['DRAFT', 'SELLER_FORM_IN_PROGRESS'].includes(tx.status)) {
+        if (Array.isArray(existing) && existing.length > 0) {
+          const mapped = existing.map(mapItem)
+          setItems(mapped)
+          const rooms = [...new Set(mapped.map((i) => i.room))] as string[]
+          setSelectedRooms(rooms)
+          setCurrentRoom(rooms[0])
+        }
+        setScreen('submitted')
+        return
+      }
+      if (!Array.isArray(existing) || existing.length === 0) return
+      const mapped = existing.map(mapItem)
+      setItems(mapped)
+      const rooms = [...new Set(mapped.map((i) => i.room))] as string[]
+      setSelectedRooms(rooms)
+      setCurrentRoom(rooms[0])
+      setScreen('items')
+    }).catch(() => {})
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [txId])
+
+  function mapItem(i: any): FixturesItem {
+    return {
+      id: i.id as string,
+      room: i.room as string,
+      description: i.description as string,
+      itemType: i.itemType as ItemType,
+      status: i.status as ItemStatus,
+      category: i.category ?? undefined,
+      salePrice: i.salePrice != null ? Number(i.salePrice) : undefined,
+      estimatedValue: i.estimatedValue != null ? Number(i.estimatedValue) : undefined,
+      notes: i.notes ?? undefined,
+      photoUrls: (i.photoUrls ?? []) as string[],
+      signedPhotoUrls: (i.signedPhotoUrls ?? []) as string[],
+    }
+  }
 
   useEffect(() => {
     if (screen === 'items') {
@@ -110,17 +129,22 @@ export default function SellerFormPage() {
 
   async function saveItems(silent = false) {
     for (const item of items) {
+      const body: Record<string, any> = {
+        room: item.room,
+        description: item.description,
+        itemType: item.itemType,
+        status: item.status,
+        category: item.category ?? null,
+        salePrice: item.status === 'FOR_SALE' ? (item.salePrice ?? null) : null,
+        estimatedValue: item.estimatedValue ?? null,
+        notes: item.notes ?? null,
+        photoUrls: item.photoUrls ?? [],
+      }
       if (!item.id) {
         const res = await fetch(`/api/transactions/${txId}/fixtures`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            room: item.room, description: item.description,
-            itemType: item.itemType, status: item.status,
-            riskFlag: item.riskFlag,
-            estimatedValue: item.estimatedValue, notes: item.notes,
-            photoUrls: item.photoUrls ?? [],
-          }),
+          body: JSON.stringify(body),
         })
         if (res.ok) {
           const created = await res.json()
@@ -130,14 +154,7 @@ export default function SellerFormPage() {
         await fetch(`/api/transactions/${txId}/fixtures/${item.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            description: item.description,
-            itemType: item.itemType,
-            status: item.status,
-            riskFlag: item.riskFlag,
-            estimatedValue: item.estimatedValue ?? null,
-            notes: item.notes ?? null,
-          }),
+          body: JSON.stringify(body),
         })
       }
     }
@@ -179,8 +196,12 @@ export default function SellerFormPage() {
   function addItem(room: string) {
     setItems((prev) => [
       ...prev,
-      { room, description: '', itemType: ItemType.FIXTURE, status: ItemStatus.INCLUDED, riskFlag: RiskFlag.NONE, photoUrls: [], signedPhotoUrls: [] },
+      { room, description: '', itemType: ItemType.FIXTURE, status: ItemStatus.INCLUDED, photoUrls: [], signedPhotoUrls: [] },
     ])
+  }
+
+  function updateItem(globalIdx: number, patch: Partial<FixturesItem>) {
+    setItems((prev) => prev.map((i, gi) => gi === globalIdx ? { ...i, ...patch } : i))
   }
 
   async function handlePhotoUpload(globalIdx: number, e: React.ChangeEvent<HTMLInputElement>) {
@@ -201,8 +222,7 @@ export default function SellerFormPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             room: item.room, description: item.description,
-            itemType: item.itemType, status: item.status,
-            riskFlag: item.riskFlag, photoUrls: [],
+            itemType: item.itemType, status: item.status, photoUrls: [],
           }),
         })
         if (!res.ok) throw new Error('Could not save item')
@@ -224,9 +244,8 @@ export default function SellerFormPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ photoUrls: updatedKeys }),
         })
-        // Re-fetch to get fresh signed URLs
         const fresh = await fetch(`/api/transactions/${txId}/fixtures`).then((r) => r.json())
-        setItems((prev) => prev.map((it, gi) => {
+        setItems((prev) => prev.map((it) => {
           const freshItem = (fresh as any[]).find((f: any) => f.id === it.id)
           if (!freshItem) return it
           return { ...it, photoUrls: freshItem.photoUrls, signedPhotoUrls: freshItem.signedPhotoUrls ?? [] }
@@ -293,6 +312,69 @@ export default function SellerFormPage() {
     )
   }
 
+  if (screen === 'submitted') {
+    return (
+      <main className="min-h-screen bg-slate-50 p-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Fixtures & Fittings — Submitted</h1>
+              <p className="text-sm text-gray-500 mt-1">Your form has been submitted and is now read-only.</p>
+            </div>
+            <button
+              onClick={() => window.open(`/seller/${txId}/print`, '_blank')}
+              className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50"
+            >
+              Print / PDF
+            </button>
+          </div>
+          {selectedRooms.map((room) => (
+            <div key={room} className="mb-5">
+              <h2 className="font-semibold text-gray-800 mb-2">{room}</h2>
+              {roomItems(room).length === 0 ? (
+                <p className="text-gray-400 text-sm italic">No items</p>
+              ) : (
+                <div className="space-y-2">
+                  {roomItems(room).map((item, i) => (
+                    <div key={i} className="bg-white border rounded-xl p-3 text-sm">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900">{item.description}</p>
+                          {item.category && <p className="text-xs text-gray-400">{item.category}</p>}
+                          {item.notes && <p className="text-xs text-gray-400 mt-0.5">{item.notes}</p>}
+                          {item.signedPhotoUrls.length > 0 && (
+                            <div className="flex gap-1.5 mt-2 flex-wrap">
+                              {item.signedPhotoUrls.map((url, pi) => (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img key={pi} src={url} alt="" className="w-14 h-11 object-cover rounded border border-gray-200" />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                            item.status === 'INCLUDED' ? 'bg-green-50 text-green-700' :
+                            item.status === 'EXCLUDED' ? 'bg-red-50 text-red-700' :
+                            item.status === 'FOR_SALE' ? 'bg-purple-50 text-purple-700' :
+                            'bg-amber-50 text-amber-700'
+                          }`}>{item.status}</span>
+                          {item.status === 'FOR_SALE' && item.salePrice && (
+                            <span className="text-xs text-gray-500">Sale price: £{item.salePrice}</span>
+                          )}
+                          {item.estimatedValue && <span className="text-xs text-gray-500">£{item.estimatedValue}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </main>
+    )
+  }
+
   if (screen === 'rooms') {
     return (
       <main className="min-h-screen bg-slate-50 p-4">
@@ -335,7 +417,6 @@ export default function SellerFormPage() {
     return (
       <main className="min-h-screen bg-slate-50 p-4">
         <div className="max-w-2xl mx-auto">
-          {/* Room tabs */}
           <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
             {selectedRooms.map((room) => (
               <button
@@ -374,75 +455,70 @@ export default function SellerFormPage() {
               return (
                 <div key={idx} className="bg-white rounded-xl border p-4 shadow-sm">
                   <div className="grid gap-3">
-                    {/* Description */}
                     <input
                       placeholder="Description (e.g. Integrated dishwasher)"
                       value={item.description}
-                      onChange={(e) => setItems((prev) => prev.map((i, gi) => gi === globalIdx ? { ...i, description: e.target.value } : i))}
+                      onChange={(e) => updateItem(globalIdx, { description: e.target.value })}
                       className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
 
-                    {/* Type + Status */}
                     <div className="grid grid-cols-2 gap-2">
                       <select
                         value={item.itemType}
-                        onChange={(e) => setItems((prev) => prev.map((i, gi) => gi === globalIdx ? { ...i, itemType: e.target.value as ItemType } : i))}
+                        onChange={(e) => updateItem(globalIdx, { itemType: e.target.value as ItemType })}
                         className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         {ITEM_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                       </select>
                       <select
+                        value={item.category ?? ''}
+                        onChange={(e) => updateItem(globalIdx, { category: e.target.value || undefined })}
+                        className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">TA10 Category…</option>
+                        {TA10_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <select
                         value={item.status}
-                        onChange={(e) => setItems((prev) => prev.map((i, gi) => gi === globalIdx ? { ...i, status: e.target.value as ItemStatus } : i))}
+                        onChange={(e) => updateItem(globalIdx, { status: e.target.value as ItemStatus })}
                         className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="INCLUDED">Included in sale</option>
                         <option value="EXCLUDED">Excluded from sale</option>
                         <option value="NEGOTIABLE">Negotiable</option>
                         <option value="REMOVED_PRIOR">Removed prior to sale</option>
+                        <option value="FOR_SALE">For sale separately</option>
                       </select>
+                      {item.status === 'FOR_SALE' ? (
+                        <input
+                          type="number"
+                          placeholder="Sale price (£)"
+                          value={item.salePrice ?? ''}
+                          onChange={(e) => updateItem(globalIdx, { salePrice: Number(e.target.value) || undefined })}
+                          className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <input
+                          type="number"
+                          placeholder="Estimated value (£)"
+                          value={item.estimatedValue ?? ''}
+                          onChange={(e) => updateItem(globalIdx, { estimatedValue: Number(e.target.value) || undefined })}
+                          className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      )}
                     </div>
 
-                    {/* Risk flag */}
-                    <div className="flex items-center gap-2">
-                      <label className="text-xs font-medium text-gray-500 w-16 flex-shrink-0">Risk flag:</label>
-                      <div className="flex gap-1.5 flex-wrap">
-                        {RISK_OPTIONS.map((opt) => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => setItems((prev) => prev.map((i, gi) => gi === globalIdx ? { ...i, riskFlag: opt.value } : i))}
-                            className={`px-2.5 py-1 rounded-full text-xs font-medium border transition ${
-                              item.riskFlag === opt.value
-                                ? RISK_COLOUR[opt.value] + ' border-current ring-1 ring-current'
-                                : 'border-gray-200 text-gray-400 hover:border-gray-300'
-                            }`}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    <textarea
+                      placeholder="Notes (optional)"
+                      value={item.notes ?? ''}
+                      rows={2}
+                      onChange={(e) => updateItem(globalIdx, { notes: e.target.value })}
+                      className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    />
 
-                    {/* Value + Notes */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="number"
-                        placeholder="Estimated value (£)"
-                        value={item.estimatedValue ?? ''}
-                        onChange={(e) => setItems((prev) => prev.map((i, gi) => gi === globalIdx ? { ...i, estimatedValue: Number(e.target.value) || undefined } : i))}
-                        className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <textarea
-                        placeholder="Notes (optional)"
-                        value={item.notes ?? ''}
-                        rows={1}
-                        onChange={(e) => setItems((prev) => prev.map((i, gi) => gi === globalIdx ? { ...i, notes: e.target.value } : i))}
-                        className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                      />
-                    </div>
-
-                    {/* Photos */}
                     <div className="pt-1">
                       {item.signedPhotoUrls.length > 0 && (
                         <div className="flex flex-wrap gap-2 mb-2">
@@ -484,13 +560,10 @@ export default function SellerFormPage() {
                     </div>
                   </div>
 
-                  {/* Delete item */}
                   <div className="mt-3 flex justify-end">
                     <button
                       type="button"
-                      onClick={() => {
-                        if (confirm('Remove this item?')) deleteItem(globalIdx)
-                      }}
+                      onClick={() => { if (confirm('Remove this item?')) deleteItem(globalIdx) }}
                       className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition"
                     >
                       Delete item
@@ -566,6 +639,7 @@ export default function SellerFormPage() {
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1">
                             <p className="font-medium text-gray-900">{item.description || <span className="text-red-400 italic">Missing description</span>}</p>
+                            {item.category && <p className="text-xs text-gray-400">{item.category}</p>}
                             {item.notes && <p className="text-xs text-gray-400 mt-0.5">{item.notes}</p>}
                             {item.signedPhotoUrls.length > 0 && (
                               <div className="flex gap-1.5 mt-2 flex-wrap">
@@ -579,12 +653,12 @@ export default function SellerFormPage() {
                           <div className="flex flex-col items-end gap-1">
                             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                               item.status === 'INCLUDED' ? 'bg-green-50 text-green-700' :
-                              item.status === 'EXCLUDED' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'
+                              item.status === 'EXCLUDED' ? 'bg-red-50 text-red-700' :
+                              item.status === 'FOR_SALE' ? 'bg-purple-50 text-purple-700' :
+                              'bg-amber-50 text-amber-700'
                             }`}>{item.status}</span>
-                            {item.riskFlag !== RiskFlag.NONE && (
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${RISK_COLOUR[item.riskFlag]}`}>
-                                {item.riskFlag} RISK
-                              </span>
+                            {item.status === 'FOR_SALE' && item.salePrice && (
+                              <span className="text-xs text-gray-500">Sale price: £{item.salePrice}</span>
                             )}
                             {item.estimatedValue && <span className="text-xs text-gray-500">£{item.estimatedValue}</span>}
                           </div>

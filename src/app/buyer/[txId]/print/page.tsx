@@ -80,9 +80,13 @@ export default async function BuyerPrintPage({ params }: { params: { txId: strin
           .acceptance { background: #f0fdf4; border: 1px solid #86efac; padding: 10px 14px; border-radius: 4px; margin-top: 16px; }
           .no-print { }
           @media print { .no-print { display: none !important; } }
+          .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-45deg);
+            font-size: 120px; font-weight: 900; color: rgba(220,38,38,0.12); pointer-events: none;
+            white-space: nowrap; z-index: 0; }
         `}</style>
       </head>
       <body>
+        {!tx.buyerAcceptedAt && <div className="watermark">DRAFT</div>}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
           <div>
             <h1>TA10 Fixtures &amp; Fittings — Buyer Copy</h1>
@@ -179,8 +183,10 @@ export default async function BuyerPrintPage({ params }: { params: { txId: strin
                 Accepted: {acceptedAt}
               </div>
               <div style={{ fontSize: 9, color: '#555', marginTop: 4 }}>
-                I confirm that I have reviewed the Fixtures &amp; Fittings schedule and accept it as part of my purchase.
-                This acceptance is legally binding and forms part of the contract of sale.
+                I confirm that I have reviewed the fixtures and fittings list for this property and I formally accept
+                this list as part of the contract for purchase. I understand that the items listed as included form
+                part of my purchase and any items listed as excluded do not. I acknowledge that this acceptance has
+                been recorded at the date and time shown and at the list version stated above.
               </div>
             </>
           ) : (

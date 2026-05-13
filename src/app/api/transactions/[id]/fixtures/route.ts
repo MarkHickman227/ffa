@@ -13,6 +13,8 @@ const CreateItemSchema = z.object({
   description: z.string().min(1).max(500),
   itemType: z.nativeEnum(ItemType),
   status: z.nativeEnum(ItemStatus).default(ItemStatus.INCLUDED),
+  category: z.string().max(100).nullable().optional(),
+  salePrice: z.number().nonnegative().nullable().optional(),
   estimatedValue: z.number().nonnegative().optional(),
   notes: z.string().max(5000).optional(),
   photoUrls: z.array(z.string()).max(10).default([]),

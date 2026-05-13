@@ -12,6 +12,8 @@ const PatchItemSchema = z.object({
   description: z.string().min(1).max(500).optional(),
   itemType: z.nativeEnum(ItemType).optional(),
   status: z.nativeEnum(ItemStatus).optional(),
+  category: z.string().max(100).nullable().optional(),
+  salePrice: z.number().nonnegative().nullable().optional(),
   estimatedValue: z.number().nonnegative().nullable().optional(),
   notes: z.string().max(5000).nullable().optional(),
   photoUrls: z.array(z.string()).max(10).optional(),

@@ -49,6 +49,13 @@ enum ItemStatus {
   EXCLUDED
   NEGOTIABLE
   REMOVED_PRIOR
+  FOR_SALE
+}
+
+enum EnquiryRouting {
+  SELLER_CONVEYANCER
+  AGENT
+  BOTH
 }
 
 enum RiskFlag {
@@ -195,8 +202,10 @@ model Transaction {
   sellerSubmittedAt DateTime?       @map("seller_submitted_at")
   buyerAcceptedAt   DateTime?       @map("buyer_accepted_at")
   exchangedAt       DateTime?       @map("exchanged_at")
-  valuationDate     DateTime?       @map("valuation_date")
-  deletedAt         DateTime?       @map("deleted_at")
+  valuationDate           DateTime? @map("valuation_date")
+  scheduledExchangeDate   DateTime? @map("scheduled_exchange_date")
+  currentVersion          Int       @default(1) @map("current_version")
+  deletedAt               DateTime? @map("deleted_at")
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")
 
@@ -204,8 +213,9 @@ model Transaction {
   seller         User               @relation("SellerUser", fields: [sellerId], references: [id])
   buyer          User?              @relation("BuyerUser", fields: [buyerId], references: [id])
   conveyancerFirm Firm?             @relation(fields: [conveyancerFirmId], references: [id])
-  fixturesItems  FixturesItem[]
-  enquiries      Enquiry[]
+  fixturesItems    FixturesItem[]
+  enquiries        Enquiry[]
+  buyerItemResponses BuyerItemResponse[]
   legalAcknowledgements LegalAcknowledgement[]
   buyerAcceptances BuyerAcceptance[]
   marketingInclusions MarketingInclusion[]
@@ -228,6 +238,8 @@ model FixturesItem {
   itemType      ItemType    @map("item_type")
   status        ItemStatus  @default(INCLUDED)
   riskFlag      RiskFlag    @default(NONE) @map("risk_flag")
+  category              String?   @db.VarChar(100)
+  salePrice             Decimal?  @map("sale_price") @db.Decimal(10, 2)
   riskFlagDismissedAt   DateTime? @map("risk_flag_dismissed_at")
   riskFlagDismissReason String?   @map("risk_flag_dismiss_reason") @db.VarChar(500)
   estimatedValue        Decimal?  @map("estimated_value") @db.Decimal(10, 2)
@@ -238,13 +250,30 @@ model FixturesItem {
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
 
-  transaction  Transaction            @relation(fields: [transactionId], references: [id])
-  changeLogs   FixturesItemChangeLog[]
+  transaction     Transaction              @relation(fields: [transactionId], references: [id])
+  changeLogs      FixturesItemChangeLog[]
   marketingInclusions MarketingInclusion[]
+  buyerResponses  BuyerItemResponse[]
 
   @@index([transactionId])
   @@index([riskFlag])
   @@map("fixtures_items")
+}
+
+model BuyerItemResponse {
+  id            String   @id @default(uuid()) @db.Uuid
+  transactionId String   @map("transaction_id") @db.Uuid
+  itemId        String   @map("item_id") @db.Uuid
+  buyerUserId   String   @map("buyer_user_id") @db.Uuid
+  response      String   @db.VarChar(20) // accept | reject | enquiry_raised
+  respondedAt   DateTime @default(now()) @map("responded_at")
+
+  transaction  Transaction  @relation(fields: [transactionId], references: [id])
+  fixturesItem FixturesItem @relation(fields: [itemId], references: [id])
+
+  @@unique([transactionId, itemId, buyerUserId])
+  @@index([transactionId])
+  @@map("buyer_item_responses")
 }
 
 // Immutable — no UPDATE, no DELETE
@@ -271,8 +300,9 @@ model Enquiry {
   raisedByUserId String       @map("raised_by_user_id") @db.Uuid
   fixturesItemId String?      @map("fixtures_item_id") @db.Uuid
   question      String        @db.Text
-  answer        String?       @db.Text
-  status        EnquiryStatus @default(OPEN)
+  answer        String?         @db.Text
+  routing       EnquiryRouting  @default(SELLER_CONVEYANCER)
+  status        EnquiryStatus   @default(OPEN)
   answeredAt    DateTime?     @map("answered_at")
   closedAt      DateTime?     @map("closed_at")
   createdAt     DateTime      @default(now()) @map("created_at")

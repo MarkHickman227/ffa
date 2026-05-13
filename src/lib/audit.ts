@@ -25,6 +25,7 @@ export type AuditEventType =
   | 'ENQUIRY_ANSWERED'
   | 'ENQUIRY_CLOSED'
   | 'BUYER_ACCEPTED'
+  | 'BUYER_ITEM_RESPONSE'
   // Conveyancer
   | 'RISK_FLAG_DISMISSED'
   | 'PDF_EXPORT_REQUESTED'

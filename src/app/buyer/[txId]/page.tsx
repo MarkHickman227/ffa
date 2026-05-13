@@ -9,20 +9,21 @@ interface Item {
   estimatedValue?: number; notes?: string; signedPhotoUrls?: string[]
 }
 interface Enquiry {
-  id: string; question: string; answer?: string; status: string; fixturesItemId?: string
+  id: string; question: string; answer?: string; status: string
+  fixturesItemId?: string; routing: string
 }
 
-type ItemDecision = 'confirm' | 'reject' | null
+type ItemDecision = 'accept' | 'reject' | null
 
 const STATUS_BADGE: Record<string, 'green' | 'red' | 'amber' | 'gray'> = {
-  INCLUDED: 'green', EXCLUDED: 'red', NEGOTIABLE: 'amber', REMOVED_PRIOR: 'gray',
+  INCLUDED: 'green', EXCLUDED: 'red', NEGOTIABLE: 'amber', REMOVED_PRIOR: 'gray', FOR_SALE: 'amber',
 }
 const RISK_BADGE: Record<string, 'red' | 'amber' | 'blue' | 'gray'> = {
   HIGH: 'red', MEDIUM: 'amber', LOW: 'blue', NONE: 'gray',
 }
 
 const ACCEPTANCE_TEXT =
-  'I confirm that I have reviewed the Fixtures & Fittings schedule and accept it as part of my purchase of the above property. I understand that this acceptance is legally binding and forms part of the contract of sale.'
+  'I confirm that I have reviewed the fixtures and fittings list for this property and I formally accept this list as part of the contract for purchase. I understand that the items listed as included form part of my purchase and any items listed as excluded do not. I acknowledge that this acceptance has been recorded at the date and time shown and at the list version stated above.'
 
 export default function BuyerReviewPage() {
   const params = useParams()
@@ -43,10 +44,16 @@ export default function BuyerReviewPage() {
       fetch(`/api/transactions/${txId}/fixtures`).then((r) => r.json()),
       fetch(`/api/transactions/${txId}/enquiries`).then((r) => r.json()),
       fetch(`/api/transactions/${txId}`).then((r) => r.json()),
-    ]).then(([f, e, tx]) => {
+      fetch(`/api/transactions/${txId}/buyer-responses`).then((r) => r.ok ? r.json() : []),
+    ]).then(([f, e, tx, responses]) => {
       setItems(f)
       setEnquiries(e)
       if (tx.buyerAcceptedAt) setAccepted(true)
+      const loaded: Record<string, ItemDecision> = {}
+      for (const r of responses as { itemId: string; response: string }[]) {
+        if (r.response === 'accept' || r.response === 'reject') loaded[r.itemId] = r.response
+      }
+      setDecisions(loaded)
     }).finally(() => setLoading(false))
   }, [txId])
 
@@ -54,9 +61,21 @@ export default function BuyerReviewPage() {
   const rejectedItems = Object.values(decisions).filter((d) => d === 'reject').length
   const canAccept = openEnquiries.length === 0 && rejectedItems === 0 && !accepted
 
-  function setDecision(itemId: string, decision: ItemDecision) {
-    setDecisions((prev) => ({ ...prev, [itemId]: prev[itemId] === decision ? null : decision }))
-    if (decision === 'reject') {
+  async function setDecision(itemId: string, decision: ItemDecision) {
+    const current = decisions[itemId] ?? null
+    const next = current === decision ? null : decision
+    setDecisions((prev) => ({ ...prev, [itemId]: next }))
+
+    if (next) {
+      const dbResponse = next === 'reject' ? 'reject' : 'accept'
+      await fetch(`/api/transactions/${txId}/buyer-responses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId, response: dbResponse }),
+      })
+    }
+
+    if (next === 'reject') {
       const item = items.find((i) => i.id === itemId)
       setSelectedItem(itemId)
       setNewQuestion((prev) => prev || `I wish to raise a query about: ${item?.description ?? 'this item'}`)
@@ -65,11 +84,11 @@ export default function BuyerReviewPage() {
 
   async function raiseEnquiry() {
     if (!newQuestion.trim()) return
-    const prefix = sendToAgent ? '[For Estate Agent] ' : ''
+    const routing = sendToAgent ? 'AGENT' : 'SELLER_CONVEYANCER'
     const res = await fetch(`/api/transactions/${txId}/enquiries`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: prefix + newQuestion, fixturesItemId: selectedItem }),
+      body: JSON.stringify({ question: newQuestion, fixturesItemId: selectedItem, routing }),
     })
     if (res.ok) {
       const created = await res.json()
@@ -77,6 +96,14 @@ export default function BuyerReviewPage() {
       setNewQuestion('')
       setSelectedItem(null)
       setSendToAgent(false)
+
+      if (selectedItem) {
+        await fetch(`/api/transactions/${txId}/buyer-responses`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ itemId: selectedItem, response: 'enquiry_raised' }),
+        })
+      }
     }
   }
 
@@ -154,13 +181,11 @@ export default function BuyerReviewPage() {
           </div>
         )}
 
-        {/* Legend */}
         <div className="flex gap-3 mb-4 text-xs text-gray-500">
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-green-500 inline-block"></span> Confirm (happy with item)</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-green-500 inline-block"></span> Accept (happy with item)</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-red-500 inline-block"></span> Reject (raise concern)</span>
         </div>
 
-        {/* Items by room */}
         {rooms.map((room) => (
           <div key={room} className="mb-6">
             <h2 className="font-semibold text-gray-800 mb-2">{room}</h2>
@@ -171,7 +196,7 @@ export default function BuyerReviewPage() {
                   <div
                     key={item.id}
                     className={`bg-white rounded-xl border p-4 shadow-sm transition ${
-                      decision === 'confirm' ? 'border-green-300 bg-green-50/30' :
+                      decision === 'accept' ? 'border-green-300 bg-green-50/30' :
                       decision === 'reject' ? 'border-red-300 bg-red-50/30' : ''
                     }`}
                   >
@@ -203,12 +228,11 @@ export default function BuyerReviewPage() {
                       </div>
                     </div>
 
-                    {/* Per-item actions */}
                     <div className="flex items-center gap-2 mt-3">
                       <button
-                        onClick={() => setDecision(item.id, 'confirm')}
+                        onClick={() => setDecision(item.id, 'accept')}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
-                          decision === 'confirm'
+                          decision === 'accept'
                             ? 'bg-green-600 text-white border-green-600'
                             : 'border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-700'
                         }`}
@@ -216,7 +240,7 @@ export default function BuyerReviewPage() {
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                         </svg>
-                        Confirm
+                        Accept
                       </button>
                       <button
                         onClick={() => setDecision(item.id, 'reject')}
@@ -245,7 +269,6 @@ export default function BuyerReviewPage() {
           </div>
         ))}
 
-        {/* Enquiries panel */}
         <div className="bg-white rounded-xl border shadow-sm p-6 mt-8">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Enquiries ({enquiries.length})</h2>
 
@@ -288,11 +311,36 @@ export default function BuyerReviewPage() {
             {enquiries.map((enq) => (
               <div key={enq.id} className="border rounded-lg p-3">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm text-gray-800">{enq.question}</p>
-                  <Badge
-                    label={enq.status}
-                    variant={enq.status === 'ANSWERED' ? 'green' : enq.status === 'CLOSED' ? 'gray' : 'amber'}
-                  />
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-800">{enq.question}</p>
+                    {enq.routing === 'AGENT' && (
+                      <p className="text-xs text-purple-600 mt-0.5">Routed to estate agent</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Badge
+                      label={enq.status}
+                      variant={enq.status === 'ANSWERED' ? 'green' : enq.status === 'CLOSED' ? 'gray' : 'amber'}
+                    />
+                    {enq.status !== 'CLOSED' && (
+                      <button
+                        onClick={async () => {
+                          const res = await fetch(`/api/transactions/${txId}/enquiries/${enq.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'close' }),
+                          })
+                          if (res.ok) {
+                            const updated = await res.json()
+                            setEnquiries((prev) => prev.map((e) => e.id === enq.id ? updated : e))
+                          }
+                        }}
+                        className="text-xs text-gray-400 hover:text-gray-600 underline"
+                      >
+                        Close
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {enq.answer && (
                   <div className="mt-2 bg-gray-50 rounded p-2 text-sm text-gray-700">
@@ -309,7 +357,6 @@ export default function BuyerReviewPage() {
 
         {error && <p className="text-red-600 text-sm mt-4">{error}</p>}
 
-        {/* Accept modal */}
         {showAcceptModal && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-8">
