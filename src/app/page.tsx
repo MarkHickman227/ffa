@@ -1,4 +1,5 @@
 import { getServerSession } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 
@@ -6,25 +7,47 @@ export const dynamic = 'force-dynamic'
 
 export default async function HomePage() {
   const session = await getServerSession()
-  const role = (session?.user as any)?.role as string | undefined
+  const user = session?.user as any
+  const role = user?.role as string | undefined
 
   if (role === 'CONVEYANCER') redirect('/conveyancer')
   if (role === 'ADMIN') redirect('/admin')
   if (role === 'AGENT') redirect('/agent')
 
-  if (role === 'SELLER' || role === 'BUYER' || role === 'SURVEYOR') {
+  if (role === 'SELLER') {
+    const tx = await prisma.transaction.findFirst({
+      where: { sellerId: user.id, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+    })
+    if (tx) redirect(`/seller/${tx.id}`)
+  }
+
+  if (role === 'BUYER') {
+    const tx = await prisma.transaction.findFirst({
+      where: { buyerId: user.id, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+    })
+    if (tx) redirect(`/buyer/${tx.id}`)
+  }
+
+  if (role === 'SURVEYOR') {
+    const access = await prisma.surveyorAccess.findFirst({
+      where: { surveyorUserId: user.id, revokedAt: null },
+      orderBy: { grantedAt: 'desc' },
+    })
+    if (access) redirect(`/surveyor/${access.transactionId}`)
+  }
+
+  if (role) {
     return (
       <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="max-w-lg w-full bg-white rounded-xl shadow p-8 text-center">
           <div className="w-12 h-12 bg-blue-900 rounded-lg flex items-center justify-center mb-6 mx-auto">
             <span className="text-white font-bold text-lg">FFA</span>
           </div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">
-            Welcome, {session?.user?.name}
-          </h1>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">Welcome, {session?.user?.name}</h1>
           <p className="text-gray-600 mb-6">
-            You are signed in as a <strong>{role.charAt(0) + role.slice(1).toLowerCase()}</strong>.
-            Use the link sent to you by your conveyancer to access your transaction.
+            No active transaction found for your account. Contact your conveyancer for access.
           </p>
           <Link href="/auth/signin" className="text-sm text-gray-400 hover:underline">
             Sign in with a different account
