@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { checkPermission } from '@/lib/rbac'
 import { writeAuditLog } from '@/lib/audit'
+import { assertMutable } from '@/lib/assertMutable'
 import { sendEmail } from '@/lib/email'
 import { EnquiryStatus } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
@@ -20,6 +21,9 @@ export const PATCH = async (req: NextRequest, { params }: { params: Record<strin
   const user = session.user as SessionUser
 
   const body = await req.json()
+
+  const guard = await assertMutable(params.id)
+  if (guard) return guard
 
   const enquiry = await prisma.enquiry.findFirst({
     where: { id: params.enquiryId, transactionId: params.id },

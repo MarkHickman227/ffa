@@ -60,7 +60,12 @@ export default async function ConveyancerHomePage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <NewTransactionModal />
+            <Link
+              href="/conveyancer/new"
+              className="bg-blue-900 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-800 transition"
+            >
+              + New Transaction
+            </Link>
             <SignOutButton />
           </div>
         </div>

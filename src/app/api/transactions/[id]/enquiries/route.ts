@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { withRBAC } from '@/lib/rbac'
 import { writeAuditLog } from '@/lib/audit'
+import { assertMutable } from '@/lib/assertMutable'
 import { sendEmail } from '@/lib/email'
 import { EnquiryRouting } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
@@ -25,6 +26,9 @@ export const POST = withRBAC('enquiry:raise', async (req: NextRequest, { params 
   const body = await req.json()
   const parsed = CreateEnquirySchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
+
+  const guard = await assertMutable(params.id)
+  if (guard) return guard
 
   const session = await getServerSession()
   const tx = await prisma.transaction.findUnique({

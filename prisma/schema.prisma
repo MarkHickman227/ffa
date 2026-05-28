@@ -9,12 +9,14 @@ datasource db {
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
+// v2 — added BUYER_SOLICITOR
 enum UserRole {
   SELLER
   BUYER
   CONVEYANCER
   AGENT
   SURVEYOR
+  BUYER_SOLICITOR
   ADMIN
   SYSTEM
 }
@@ -25,8 +27,14 @@ enum TransactionStatus {
   SELLER_FORM_SUBMITTED
   BUYER_REVIEW
   BUYER_ACCEPTED
+  SELLER_REVISION
   EXCHANGE_COMPLETE
   ARCHIVED
+}
+
+enum RejectionReason {
+  NOT_NEEDED
+  TOO_EXPENSIVE
 }
 
 enum ItemType {
@@ -138,6 +146,7 @@ model User {
   role          UserRole
   firstName     String    @map("first_name") @db.VarChar(100)
   lastName      String    @map("last_name") @db.VarChar(100)
+  phone         String?   @map("phone") @db.VarChar(30)
   passwordHash  String?   @map("password_hash") @db.VarChar(255)
   totpSecret    String?   @map("totp_secret") @db.VarChar(255)
   totpEnabled   Boolean   @default(false) @map("totp_enabled")
@@ -148,13 +157,15 @@ model User {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  firm              Firm?          @relation(fields: [firmId], references: [id])
-  sellerTransactions Transaction[] @relation("SellerUser")
-  buyerTransactions  Transaction[] @relation("BuyerUser")
-  auditLogs         AuditLog[]
-  magicLinks        MagicLink[]
-  accounts          Account[]
-  sessions          Session[]
+  firm                    Firm?          @relation(fields: [firmId], references: [id])
+  sellerTransactions      Transaction[]  @relation("SellerUser")
+  buyerTransactions       Transaction[]  @relation("BuyerUser")
+  conveyancerTransactions Transaction[]  @relation("ConveyancerUser")
+  agentTransactions       Transaction[]  @relation("AgentUser")
+  auditLogs               AuditLog[]
+  magicLinks              MagicLink[]
+  accounts                Account[]
+  sessions                Session[]
 
   @@index([email])
   @@index([firmId])
@@ -198,8 +209,20 @@ model Transaction {
   propertyId      String            @map("property_id") @db.Uuid
   sellerId        String            @map("seller_id") @db.Uuid
   buyerId         String?           @map("buyer_id") @db.Uuid
-  conveyancerFirmId String?         @map("conveyancer_firm_id") @db.Uuid
-  sellerSubmittedAt DateTime?       @map("seller_submitted_at")
+  conveyancerUserId   String?         @map("conveyancer_user_id") @db.Uuid
+  agentUserId         String?         @map("agent_user_id") @db.Uuid
+  conveyancerFirmId   String?         @map("conveyancer_firm_id") @db.Uuid
+  jobNumber           String?         @map("job_number") @db.VarChar(100)
+  contractId          String?         @map("contract_id") @db.VarChar(100)
+  sellerContactAddress String?        @map("seller_contact_address") @db.Text
+  agentContactName    String?         @map("agent_contact_name") @db.VarChar(200)
+  agentPhone          String?         @map("agent_phone") @db.VarChar(30)
+  agentEmail          String?         @map("agent_email") @db.VarChar(255)
+  buyerSolicitorName  String?         @map("buyer_solicitor_name") @db.VarChar(200)
+  buyerSolicitorPhone String?         @map("buyer_solicitor_phone") @db.VarChar(30)
+  buyerSolicitorEmail String?         @map("buyer_solicitor_email") @db.VarChar(255)
+  buyerContactAddress String?         @map("buyer_contact_address") @db.Text
+  sellerSubmittedAt   DateTime?       @map("seller_submitted_at")
   buyerAcceptedAt   DateTime?       @map("buyer_accepted_at")
   exchangedAt       DateTime?       @map("exchanged_at")
   valuationDate           DateTime? @map("valuation_date")
@@ -209,10 +232,12 @@ model Transaction {
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")
 
-  property       Property           @relation(fields: [propertyId], references: [id])
-  seller         User               @relation("SellerUser", fields: [sellerId], references: [id])
-  buyer          User?              @relation("BuyerUser", fields: [buyerId], references: [id])
-  conveyancerFirm Firm?             @relation(fields: [conveyancerFirmId], references: [id])
+  property          Property           @relation(fields: [propertyId], references: [id])
+  seller            User               @relation("SellerUser", fields: [sellerId], references: [id])
+  buyer             User?              @relation("BuyerUser", fields: [buyerId], references: [id])
+  conveyancerUser   User?              @relation("ConveyancerUser", fields: [conveyancerUserId], references: [id])
+  agentUser         User?              @relation("AgentUser", fields: [agentUserId], references: [id])
+  conveyancerFirm   Firm?              @relation(fields: [conveyancerFirmId], references: [id])
   fixturesItems    FixturesItem[]
   enquiries        Enquiry[]
   buyerItemResponses BuyerItemResponse[]
@@ -226,6 +251,8 @@ model Transaction {
   @@index([status])
   @@index([sellerId])
   @@index([buyerId])
+  @@index([conveyancerUserId])
+  @@index([agentUserId])
   @@index([conveyancerFirmId])
   @@map("transactions")
 }
@@ -234,7 +261,8 @@ model FixturesItem {
   id            String      @id @default(uuid()) @db.Uuid
   transactionId String      @map("transaction_id") @db.Uuid
   room          String      @db.VarChar(100)
-  description   String      @db.VarChar(500)
+  itemName      String      @default("") @map("item_name") @db.VarChar(200)
+  description   String      @default("") @db.VarChar(500)
   itemType      ItemType    @map("item_type")
   status        ItemStatus  @default(INCLUDED)
   riskFlag      RiskFlag    @default(NONE) @map("risk_flag")
@@ -261,12 +289,13 @@ model FixturesItem {
 }
 
 model BuyerItemResponse {
-  id            String   @id @default(uuid()) @db.Uuid
-  transactionId String   @map("transaction_id") @db.Uuid
-  itemId        String   @map("item_id") @db.Uuid
-  buyerUserId   String   @map("buyer_user_id") @db.Uuid
-  response      String   @db.VarChar(20) // accept | reject | enquiry_raised
-  respondedAt   DateTime @default(now()) @map("responded_at")
+  id               String           @id @default(uuid()) @db.Uuid
+  transactionId    String           @map("transaction_id") @db.Uuid
+  itemId           String           @map("item_id") @db.Uuid
+  buyerUserId      String           @map("buyer_user_id") @db.Uuid
+  response         String           @db.VarChar(20) // accept | reject | enquiry_raised
+  rejectionReason  RejectionReason? @map("rejection_reason")
+  respondedAt      DateTime         @default(now()) @map("responded_at")
 
   transaction  Transaction  @relation(fields: [transactionId], references: [id])
   fixturesItem FixturesItem @relation(fields: [itemId], references: [id])
@@ -295,18 +324,19 @@ model FixturesItemChangeLog {
 }
 
 model Enquiry {
-  id            String        @id @default(uuid()) @db.Uuid
-  transactionId String        @map("transaction_id") @db.Uuid
-  raisedByUserId String       @map("raised_by_user_id") @db.Uuid
-  fixturesItemId String?      @map("fixtures_item_id") @db.Uuid
-  question      String        @db.Text
-  answer        String?         @db.Text
-  routing       EnquiryRouting  @default(SELLER_CONVEYANCER)
-  status        EnquiryStatus   @default(OPEN)
-  answeredAt    DateTime?     @map("answered_at")
-  closedAt      DateTime?     @map("closed_at")
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
+  id              String        @id @default(uuid()) @db.Uuid
+  transactionId   String        @map("transaction_id") @db.Uuid
+  raisedByUserId  String        @map("raised_by_user_id") @db.Uuid
+  fixturesItemId  String?       @map("fixtures_item_id") @db.Uuid
+  question        String        @db.Text
+  answer          String?       @db.Text
+  routing         EnquiryRouting  @default(SELLER_CONVEYANCER)
+  status          EnquiryStatus   @default(OPEN)
+  routedAt        DateTime?     @map("routed_at")
+  answeredAt      DateTime?     @map("answered_at")
+  closedAt        DateTime?     @map("closed_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
 
   transaction Transaction @relation(fields: [transactionId], references: [id])
 
@@ -397,6 +427,22 @@ model SurveyorAccess {
   @@index([transactionId])
   @@index([surveyorUserId])
   @@map("surveyor_access")
+}
+
+// v3 — added SystemSettings
+model SystemSettings {
+  id                  String   @id @default(uuid()) @db.Uuid
+  smtpHost            String?  @map("smtp_host") @db.VarChar(255)
+  smtpPort            Int?     @map("smtp_port")
+  smtpUser            String?  @map("smtp_user") @db.VarChar(255)
+  smtpPassEncrypted   String?  @map("smtp_pass_encrypted") @db.Text
+  emailFromName       String?  @map("email_from_name") @db.VarChar(100)
+  emailFromAddress    String?  @map("email_from_address") @db.VarChar(255)
+  isEmailConfigured   Boolean  @default(false) @map("is_email_configured")
+  updatedByUserId     String?  @map("updated_by_user_id") @db.Uuid
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
 }
 
 // Write-only — no UPDATE, no DELETE

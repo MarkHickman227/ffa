@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { withRBAC } from '@/lib/rbac'
 import { computeRiskFlag } from '@/lib/risk'
 import { writeAuditLog } from '@/lib/audit'
+import { assertMutable } from '@/lib/assertMutable'
 import { getSignedDownloadUrl } from '@/lib/s3'
 import { ItemStatus, ItemType } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
@@ -10,7 +11,8 @@ import { getServerSession } from '@/lib/auth'
 
 const CreateItemSchema = z.object({
   room: z.string().min(1).max(100),
-  description: z.string().min(1).max(500),
+  itemName: z.string().min(1).max(200),
+  description: z.string().max(500).optional().default(''),
   itemType: z.nativeEnum(ItemType),
   status: z.nativeEnum(ItemStatus).default(ItemStatus.INCLUDED),
   category: z.string().max(100).nullable().optional(),
@@ -33,6 +35,7 @@ export const GET = withRBAC('seller_form:read', async (_req, { params }) => {
       if (item.photoUrls.length === 0) return { ...item, signedPhotoUrls: [] }
       const signed = await Promise.all(
         item.photoUrls.map(async (key) => {
+          if (key.startsWith('data:')) return key   // base64 data URL — return directly
           try { return await getSignedDownloadUrl(key, 3600) }
           catch { return null }
         }),
@@ -48,7 +51,12 @@ export const POST = withRBAC('seller_form:write', async (req: NextRequest, { par
   const parsed = CreateItemSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
 
+  const guard = await assertMutable(params.id)
+  if (guard) return guard
+
   const session = await getServerSession()
+  const userId = (session?.user as any)?.id as string | undefined
+
   const tx = await prisma.transaction.findUnique({
     where: { id: params.id },
     select: { valuationDate: true, exchangedAt: true },
@@ -63,33 +71,29 @@ export const POST = withRBAC('seller_form:write', async (req: NextRequest, { par
     exchangeDate: tx.exchangedAt,
   })
 
-  const item = await prisma.$transaction(async (db) => {
-    const created = await db.fixturesItem.create({
+  const item = await prisma.fixturesItem.create({
+    data: { ...parsed.data, transactionId: params.id, riskFlag },
+  })
+
+  if (userId) {
+    prisma.fixturesItemChangeLog.create({
       data: {
-        ...parsed.data,
+        fixturesItemId: item.id,
         transactionId: params.id,
-        riskFlag,
-      },
-    })
-    await db.fixturesItemChangeLog.create({
-      data: {
-        fixturesItemId: created.id,
-        transactionId: params.id,
-        changedByUserId: session!.user.id,
+        changedByUserId: userId,
         fieldName: 'created',
         oldValue: null,
         newValue: JSON.stringify(parsed.data),
       },
-    })
-    return created
-  })
+    }).catch(() => {})
 
-  await writeAuditLog({
-    eventType: 'FIXTURES_ITEM_CREATED',
-    transactionId: params.id,
-    userId: session!.user.id,
-    eventData: { itemId: item.id, description: item.description },
-  })
+    writeAuditLog({
+      eventType: 'FIXTURES_ITEM_CREATED',
+      transactionId: params.id,
+      userId,
+      eventData: { itemId: item.id, description: item.description },
+    }).catch(() => {})
+  }
 
   return NextResponse.json(item, { status: 201 })
 })

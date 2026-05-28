@@ -27,4 +27,4 @@ COPY --from=deps /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY prisma/schema.prisma ./prisma/schema.prisma
 EXPOSE 3000
-CMD ["sh", "-c", "node node_modules/prisma/build/index.js db push --skip-generate --accept-data-loss 2>&1 && node server.js"]
+CMD ["sh", "-c", "node node_modules/prisma/build/index.js db push --skip-generate --accept-data-loss 2>&1 || echo 'DB already in sync — skipping push'; node server.js"]

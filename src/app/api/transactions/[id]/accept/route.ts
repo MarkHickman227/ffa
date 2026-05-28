@@ -40,6 +40,16 @@ export const POST = withRBAC('buyer_form:accept', async (req: NextRequest, { par
       fixturesItems: { where: { deletedAt: null } },
       property: true,
       seller: true,
+      buyer: true,
+      agentUser: true,
+      conveyancerFirm: {
+        include: {
+          users: {
+            where: { role: 'CONVEYANCER', deletedAt: null },
+            select: { email: true, firstName: true, lastName: true },
+          },
+        },
+      },
     },
   })
   if (!tx) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -79,11 +89,26 @@ export const POST = withRBAC('buyer_form:accept', async (req: NextRequest, { par
   await emitWebhookEvent('BUYER_ACCEPTED', params.id, { buyerId: session!.user.id })
 
   const address = `${tx.property.addressLine1}, ${tx.property.city} ${tx.property.postcode}`
-  await sendEmail({
-    to: tx.seller.email,
-    event: 'BUYER_ACCEPTED',
-    data: { address, reference: tx.reference, acceptedAt: new Date().toISOString() },
-  }).catch(() => {/* non-blocking */})
+  const acceptedAt = new Date().toLocaleString('en-GB', { dateStyle: 'long', timeStyle: 'short' })
+  const emailData = { address, reference: tx.reference, acceptedAt }
+
+  // BR-009: notify Seller, Buyer, Estate Agent, and Conveyancer(s)
+  const recipients: { email: string; name: string }[] = [
+    { email: tx.seller.email, name: `${tx.seller.firstName} ${tx.seller.lastName}` },
+  ]
+  if (tx.buyer) recipients.push({ email: tx.buyer.email, name: `${tx.buyer.firstName} ${tx.buyer.lastName}` })
+  if (tx.agentUser) recipients.push({ email: tx.agentUser.email, name: `${tx.agentUser.firstName} ${tx.agentUser.lastName}` })
+  for (const conv of tx.conveyancerFirm?.users ?? []) {
+    recipients.push({ email: conv.email, name: `${conv.firstName} ${conv.lastName}` })
+  }
+
+  for (const r of recipients) {
+    sendEmail({
+      to: r.email,
+      event: 'BUYER_ACCEPTED_ALL_PARTIES',
+      data: { ...emailData, recipientName: r.name },
+    }).catch(() => {})
+  }
 
   return NextResponse.json({ accepted: true })
 })

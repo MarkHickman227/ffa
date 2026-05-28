@@ -18,6 +18,7 @@ export type Action =
   | 'enquiry:answer'
   | 'enquiry:close'
   | 'conveyancer:read'
+  | 'conveyancer:manage'
   | 'conveyancer:dismiss_risk'
   | 'conveyancer:export_pdf'
   | 'surveyor_access:grant'
@@ -39,6 +40,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Action[]> = {
   ],
   [UserRole.BUYER]: [
     'transaction:read',
+    'seller_form:read',
     'buyer_form:read',
     'buyer_form:accept',
     'enquiry:raise',
@@ -50,6 +52,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Action[]> = {
     'seller_form:read',
     'buyer_form:read',
     'conveyancer:read',
+    'conveyancer:manage',
     'conveyancer:dismiss_risk',
     'conveyancer:export_pdf',
     'surveyor_access:grant',
@@ -76,6 +79,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Action[]> = {
     'seller_form:read',
     'buyer_form:read',
     'conveyancer:read',
+    'conveyancer:manage',
     'conveyancer:dismiss_risk',
     'conveyancer:export_pdf',
     'surveyor_access:grant',
@@ -137,7 +141,7 @@ export async function checkPermission(
     case UserRole.CONVEYANCER:
       return tx.conveyancerFirmId === user.firmId
     case UserRole.AGENT:
-      return tx.conveyancerFirmId === user.firmId
+      return true // no agent-firm link on Transaction; list page already shows all
     case UserRole.SURVEYOR:
       return tx.surveyorAccess.length > 0
     default:

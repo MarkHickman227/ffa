@@ -9,7 +9,7 @@ import { useSearchParams } from 'next/navigation'
 
 function SignInForm() {
   const searchParams = useSearchParams()
-  const [mode, setMode] = useState<'magic' | 'credentials'>('magic')
+  const [mode, setMode] = useState<'magic' | 'credentials'>('credentials')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [totpCode, setTotpCode] = useState('')
@@ -133,7 +133,7 @@ function SignInForm() {
         )}
 
         <p className="text-xs text-gray-400 text-center mt-6">
-          Use Magic Link if you are a seller or buyer. Password login is for conveyancers and agents.
+          Sign in with your email and password. Magic Link is only available on verified email domains.
         </p>
       </div>
     </main>

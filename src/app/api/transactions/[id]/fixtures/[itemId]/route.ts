@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { withRBAC } from '@/lib/rbac'
 import { computeRiskFlag } from '@/lib/risk'
 import { writeAuditLog } from '@/lib/audit'
+import { assertMutable } from '@/lib/assertMutable'
 import { ItemStatus, ItemType, RiskFlag } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -9,7 +10,8 @@ import { getServerSession } from '@/lib/auth'
 
 const PatchItemSchema = z.object({
   room: z.string().min(1).max(100).optional(),
-  description: z.string().min(1).max(500).optional(),
+  itemName: z.string().min(1).max(200).optional(),
+  description: z.string().max(500).optional(),
   itemType: z.nativeEnum(ItemType).optional(),
   status: z.nativeEnum(ItemStatus).optional(),
   category: z.string().max(100).nullable().optional(),
@@ -25,6 +27,9 @@ export const PATCH = withRBAC('seller_form:write', async (req: NextRequest, { pa
   const body = await req.json()
   const parsed = PatchItemSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
+
+  const guard = await assertMutable(params.id)
+  if (guard) return guard
 
   const session = await getServerSession()
   const existing = await prisma.fixturesItem.findFirst({
@@ -88,6 +93,9 @@ export const PATCH = withRBAC('seller_form:write', async (req: NextRequest, { pa
 })
 
 export const DELETE = withRBAC('seller_form:write', async (_req, { params }) => {
+  const guard = await assertMutable(params.id)
+  if (guard) return guard
+
   const session = await getServerSession()
   const existing = await prisma.fixturesItem.findFirst({
     where: { id: params.itemId, transactionId: params.id, deletedAt: null },

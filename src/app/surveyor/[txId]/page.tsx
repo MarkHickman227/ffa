@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
+import { signOut } from 'next-auth/react'
 import { Badge } from '@/components/ui/Badge'
 
 interface Item {
@@ -55,9 +56,17 @@ export default function SurveyorViewPage() {
   return (
     <main className="min-h-screen bg-slate-50 p-4">
       <div className="max-w-4xl mx-auto">
-        <div className="flex items-center gap-3 mb-1">
-          <h1 className="text-2xl font-bold text-gray-900">Surveyor View</h1>
-          <span className="bg-gray-100 text-gray-600 text-xs font-medium px-2 py-0.5 rounded">Read-only</span>
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-gray-900">Surveyor View</h1>
+            <span className="bg-gray-100 text-gray-600 text-xs font-medium px-2 py-0.5 rounded">Read-only</span>
+          </div>
+          <button
+            onClick={() => signOut({ callbackUrl: '/auth/signin' })}
+            className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
+          >
+            Exit
+          </button>
         </div>
         <p className="text-gray-500 text-sm mb-6">
           You have read-only access to the Fixtures & Fittings schedule. Flag any discrepancies below.

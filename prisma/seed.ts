@@ -24,92 +24,98 @@ async function main() {
   })
 
   // ── Users ─────────────────────────────────────────────────────────────────
-  const conveyancerPasswordHash = await bcrypt.hash('Password123!', 12)
+  const passwordHash = await bcrypt.hash('Password123!', 12)
 
   const seller1 = await prisma.user.upsert({
     where: { email: 'alice.seller@test.ffa' },
-    update: {},
+    update: { passwordHash },
     create: {
       id: '00000000-0000-0000-0000-000000000010',
       email: 'alice.seller@test.ffa',
       role: UserRole.SELLER,
       firstName: 'Alice',
       lastName: 'Thompson',
+      passwordHash,
     },
   })
 
   const buyer1 = await prisma.user.upsert({
     where: { email: 'bob.buyer@test.ffa' },
-    update: {},
+    update: { passwordHash },
     create: {
       id: '00000000-0000-0000-0000-000000000011',
       email: 'bob.buyer@test.ffa',
       role: UserRole.BUYER,
       firstName: 'Bob',
       lastName: 'Harrison',
+      passwordHash,
     },
   })
 
   const conveyancer1 = await prisma.user.upsert({
     where: { email: 'claire.conv@smithpartners.test' },
-    update: {},
+    update: { passwordHash },
     create: {
       id: '00000000-0000-0000-0000-000000000012',
       email: 'claire.conv@smithpartners.test',
       role: UserRole.CONVEYANCER,
       firstName: 'Claire',
       lastName: 'Davies',
-      passwordHash: conveyancerPasswordHash,
+      passwordHash,
       firmId: conveyancerFirm.id,
     },
   })
 
   const agent1 = await prisma.user.upsert({
     where: { email: 'david.agent@premier.test' },
-    update: {},
+    update: { passwordHash },
     create: {
       id: '00000000-0000-0000-0000-000000000013',
       email: 'david.agent@premier.test',
       role: UserRole.AGENT,
       firstName: 'David',
       lastName: 'Williams',
+      passwordHash,
       firmId: agentFirm.id,
     },
   })
 
   const surveyor1 = await prisma.user.upsert({
     where: { email: 'eve.surveyor@test.ffa' },
-    update: {},
+    update: { passwordHash },
     create: {
       id: '00000000-0000-0000-0000-000000000014',
       email: 'eve.surveyor@test.ffa',
       role: UserRole.SURVEYOR,
       firstName: 'Eve',
       lastName: 'Martin',
+      passwordHash,
     },
   })
 
   const seller2 = await prisma.user.upsert({
     where: { email: 'frank.seller@test.ffa' },
-    update: {},
+    update: { passwordHash },
     create: {
       id: '00000000-0000-0000-0000-000000000015',
       email: 'frank.seller@test.ffa',
       role: UserRole.SELLER,
       firstName: 'Frank',
       lastName: 'Johnson',
+      passwordHash,
     },
   })
 
   const buyer2 = await prisma.user.upsert({
     where: { email: 'grace.buyer@test.ffa' },
-    update: {},
+    update: { passwordHash },
     create: {
       id: '00000000-0000-0000-0000-000000000016',
       email: 'grace.buyer@test.ffa',
       role: UserRole.BUYER,
       firstName: 'Grace',
       lastName: 'Lee',
+      passwordHash,
     },
   })
 

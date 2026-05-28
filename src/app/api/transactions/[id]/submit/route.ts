@@ -31,12 +31,26 @@ export const POST = withRBAC('seller_form:submit', async (req: NextRequest, { pa
       property: true,
       seller: true,
       buyer: true,
+      agentUser: { select: { email: true, firstName: true, lastName: true } },
+      conveyancerFirm: {
+        include: {
+          users: {
+            where: { role: 'CONVEYANCER', deletedAt: null },
+            select: { email: true },
+          },
+        },
+      },
     },
   })
   if (!tx) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  if (tx.status !== TransactionStatus.SELLER_FORM_IN_PROGRESS && tx.status !== TransactionStatus.DRAFT) {
-    return NextResponse.json({ error: 'Form already submitted' }, { status: 409 })
+  const editableStatuses: TransactionStatus[] = [
+    TransactionStatus.SELLER_FORM_IN_PROGRESS,
+    TransactionStatus.DRAFT,
+    TransactionStatus.SELLER_REVISION,
+  ]
+  if (!editableStatuses.includes(tx.status)) {
+    return NextResponse.json({ error: 'Form cannot be submitted in its current status' }, { status: 409 })
   }
 
   await prisma.$transaction(async (db) => {
@@ -74,31 +88,56 @@ export const POST = withRBAC('seller_form:submit', async (req: NextRequest, { pa
   })
 
   const address = `${tx.property.addressLine1}, ${tx.property.city} ${tx.property.postcode}`
+  const submittedAt = new Date().toLocaleString('en-GB', { dateStyle: 'long', timeStyle: 'short' })
+  const isRevision = tx.status === TransactionStatus.SELLER_REVISION
 
-  // Notify buyer (legally material — cannot opt out)
-  if (tx.buyer) {
-    await sendEmail({
-      to: tx.buyer.email,
-      event: 'BUYER_REVIEW_READY',
-      data: {
-        buyerName: `${tx.buyer.firstName} ${tx.buyer.lastName}`,
-        address,
-        reference: tx.reference,
-        url: `${process.env.NEXTAUTH_URL}/buyer/${tx.id}`,
-      },
-    }).catch(() => {/* non-blocking */})
+  if (isRevision) {
+    // BR-014: notify conveyancer that revised form is ready for review
+    const conveyancers = tx.conveyancerFirm?.users ?? []
+    for (const conv of conveyancers) {
+      sendEmail({
+        to: conv.email,
+        event: 'SELLER_REVISION_SUBMITTED',
+        data: { address, reference: tx.reference, submittedAt },
+      }).catch(() => {})
+    }
+  } else {
+    // Initial submission — notify buyer and solicitors
+    if (tx.buyer) {
+      sendEmail({
+        to: tx.buyer.email,
+        event: 'BUYER_REVIEW_READY',
+        data: {
+          buyerName: `${tx.buyer.firstName} ${tx.buyer.lastName}`,
+          address,
+          reference: tx.reference,
+          url: `${process.env.NEXTAUTH_URL}/buyer/${tx.id}`,
+        },
+      }).catch(() => {})
+    }
+
+    const conveyancers = tx.conveyancerFirm?.users ?? []
+    for (const conv of conveyancers) {
+      sendEmail({
+        to: conv.email,
+        event: 'SELLER_FORM_SUBMITTED',
+        data: { address, reference: tx.reference, submittedAt },
+      }).catch(() => {})
+    }
+
+    if (tx.agentUser) {
+      sendEmail({
+        to: tx.agentUser.email,
+        event: 'SELLER_PACK_SUBMITTED_AGENT',
+        data: {
+          agentName: `${tx.agentUser.firstName} ${tx.agentUser.lastName}`,
+          address,
+          reference: tx.reference,
+          submittedAt,
+        },
+      }).catch(() => {})
+    }
   }
-
-  // Notify conveyancer (legally material)
-  await sendEmail({
-    to: tx.seller.email,
-    event: 'SELLER_FORM_SUBMITTED',
-    data: {
-      address,
-      reference: tx.reference,
-      submittedAt: new Date().toISOString(),
-    },
-  }).catch(() => {/* non-blocking */})
 
   return NextResponse.json({ submitted: true })
 })
