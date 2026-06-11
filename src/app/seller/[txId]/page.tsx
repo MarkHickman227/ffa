@@ -1,1217 +1,609 @@
 'use client'
+import { useState, useRef, useEffect } from 'react'
+import { useSession, signOut } from 'next-auth/react'
+import { useRouter, useParams } from 'next/navigation'
 
-import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'next/navigation'
-import { signOut } from 'next-auth/react'
-import { ItemStatus, ItemType } from '@prisma/client'
+// ── Design tokens ─────────────────────────────────────────────────────────────
+const C = {
+  purple: '#370994', purpleLight: '#EEEDFE', purpleMid: '#534AB7',
+  teal: '#1D9E75', tealLight: '#E1F5EE', tealDark: '#085041',
+  amberLight: '#FAEEDA', amberDark: '#633806',
+  redLight: '#FCEBEB', redDark: '#791F1F',
+  border: '#e5e5e5', text: '#1a1a1a', textMuted: '#6b7280', textHint: '#9ca3af',
+  bg: '#fff', bgSurface: '#f9f9f8',
+} as const
 
-type Screen = 'welcome' | 'rooms' | 'items' | 'review' | 'legal' | 'confirmation' | 'submitted'
-
-const TA10_ROOMS = [
-  'Kitchen', 'Living Room', 'Dining Room', 'Master Bedroom',
-  'Bedroom 2', 'Bedroom 3', 'Bathroom', 'En-suite',
-  'Hallway', 'Garden', 'Garage', 'Loft / Attic',
+const ROOMS = [
+  { id: 'kitchen',   name: 'Kitchen',                icon: '🍳' },
+  { id: 'bathroom',  name: 'Bathroom',               icon: '🛁' },
+  { id: 'lounge',    name: 'Lounge / Living room',   icon: '🛋️' },
+  { id: 'master',    name: 'Master bedroom',          icon: '🛏️' },
+  { id: 'bedroom2',  name: 'Bedroom 2',               icon: '🛏️' },
+  { id: 'bedroom3',  name: 'Bedroom 3',               icon: '🛏️' },
+  { id: 'hallway',   name: 'Hallway',                 icon: '🚪' },
+  { id: 'garden',    name: 'Garden',                  icon: '🌿' },
+  { id: 'garage',    name: 'Garage / Outbuildings',   icon: '🏠' },
+  { id: 'utility',   name: 'Utility room',            icon: '🔧' },
+  { id: 'loft',      name: 'Loft / Roof space',       icon: '📦' },
+  { id: 'external',  name: 'External / Security',     icon: '🔒' },
 ]
 
-const TA10_CATEGORIES = [
-  'Basic Fittings',
-  'Kitchen',
-  'Bathroom',
-  'Decorative Fittings',
-  'TV / Telephone / Broadband',
-  'Light Fittings',
-  'Garden Items',
-  'Outdoor Buildings & Swimming Pools',
-  'Central Heating',
-  'Fitted Carpets',
-  'Electrical Appliances',
-  'Other',
-]
+type Status = 'include' | 'exclude' | 'negotiate'
+type Sdlt   = 'low' | 'medium' | 'high'
+type Screen = 'home' | 'room' | 'review' | 'submitting' | 'done'
+type Mode   = 'photo' | 'analyzing' | 'form'
 
-const ITEM_TYPES: { value: ItemType; label: string }[] = [
-  { value: ItemType.FIXTURE, label: 'Fixture (stays by default)' },
-  { value: ItemType.FITTING, label: 'Fitting (leaves by default)' },
-  { value: ItemType.KITCHEN_APPLIANCE, label: 'Kitchen Appliance' },
-  { value: ItemType.BATHROOM_FITTING, label: 'Bathroom Fitting' },
-  { value: ItemType.LIGHT_FITTING, label: 'Light Fitting' },
-  { value: ItemType.CARPET_FLOORING, label: 'Carpet / Flooring' },
-  { value: ItemType.CURTAIN_BLIND, label: 'Curtain / Blind' },
-  { value: ItemType.GARDEN_ITEM, label: 'Garden Item' },
-  { value: ItemType.OUTDOOR_STRUCTURE, label: 'Outdoor Structure' },
-  { value: ItemType.SMART_HOME, label: 'Smart Home Device' },
-  { value: ItemType.SECURITY_SYSTEM, label: 'Security System' },
-  { value: ItemType.OTHER, label: 'Other' },
-]
+interface Item {
+  id: string
+  title: string
+  brand: string
+  price: number | null
+  sdlt: Sdlt
+  notes: string
+  status: Status
+  imgData: string | null
+  reasoning?: string
+}
 
-const LEGAL_TEXT =
-  'I confirm that the information I have provided in this fixtures and fittings form is accurate and complete to the best of my knowledge and belief. I understand that this information will form part of the contract for the sale of the property and that I may be legally liable for any inaccuracies. I acknowledge that this declaration has been made at the date and time recorded by the platform and from the device identified by my IP address.'
+type RoomMap = Record<string, Item[]>
 
-interface FixturesItem {
-  id?: string
-  room: string
-  itemName: string
-  description: string
-  itemType: ItemType
-  status: ItemStatus
-  category?: string
-  salePrice?: number
-  estimatedValue?: number
-  notes?: string
-  photoUrls: string[]
-  signedPhotoUrls: string[]
+const initRooms = (): RoomMap => Object.fromEntries(ROOMS.map(r => [r.id, []]))
+const blankItem = (): Item => ({ id: crypto.randomUUID(), title: '', brand: '', price: null, sdlt: 'low', notes: '', status: 'include', imgData: null })
+
+const STATUS_STYLE: Record<Status, { bg: string; color: string; border: string }> = {
+  include:   { bg: '#E1F5EE', color: '#085041', border: '#1D9E75' },
+  exclude:   { bg: '#FCEBEB', color: '#791F1F', border: '#F09595' },
+  negotiate: { bg: '#FAEEDA', color: '#633806', border: '#EF9F27' },
 }
 
 export default function SellerFormPage() {
   const params = useParams()
   const txId = params?.txId as string
-  const [screen, setScreen] = useState<Screen>('welcome')
-  const [revisionMode, setRevisionMode] = useState(false)
-  const [selectedRooms, setSelectedRooms] = useState<string[]>([])
-  const [currentRoom, setCurrentRoom] = useState<string>('')
-  const [items, setItems] = useState<FixturesItem[]>([])
-  const [legalAgreed, setLegalAgreed] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null)
-  const [deletingPhoto, setDeletingPhoto] = useState<string | null>(null)
-  const autoSaveRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const [showModal, setShowModal] = useState(false)
-  const [modal, setModal] = useState({
-    room: '', name: '', notes: '', estimatedValue: '',
-    status: 'INCLUDED' as ItemStatus, itemType: 'FIXTURE' as ItemType, category: '',
-  })
-  const [modalFiles, setModalFiles] = useState<File[]>([])
-  const [modalPreviews, setModalPreviews] = useState<string[]>([])
-  const [savingModal, setSavingModal] = useState(false)
-  const [modalError, setModalError] = useState<string | null>(null)
-  const [showAddRoom, setShowAddRoom] = useState(false)
-  const [customRoom, setCustomRoom] = useState('')
+  const { data: session, status: authStatus } = useSession()
+  const router = useRouter()
+
+  const [propRef,    setPropRef]    = useState('')
+  const [screen,     setScreen]     = useState<Screen>('home')
+  const [curRoom,    setCurRoom]    = useState('kitchen')
+  const [roomItems,  setRoomItems]  = useState<RoomMap>(initRooms)
+  const [modalOpen,  setModalOpen]  = useState(false)
+  const [modalMode,  setModalMode]  = useState<Mode>('photo')
+  const [editItem,   setEditItem]   = useState<Item>(blankItem())
+  const [editIdx,    setEditIdx]    = useState<number | null>(null)
+  const [subId,        setSubId]        = useState('')
+  const [submitErr,    setSubmitErr]    = useState('')
+  const [showExitDlg,  setShowExitDlg]  = useState(false)
+  const [saveStatus,   setSaveStatus]   = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+
+  const camRef  = useRef<HTMLInputElement>(null)
+  const gallRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    Promise.all([
-      fetch(`/api/transactions/${txId}/fixtures`).then((r) => r.json()),
-      fetch(`/api/transactions/${txId}`).then((r) => r.ok ? r.json() : null),
-    ]).then(([existing, tx]) => {
-      // If already submitted, show read-only view (SELLER_REVISION stays editable)
-      if (tx?.status && !['DRAFT', 'SELLER_FORM_IN_PROGRESS', 'SELLER_REVISION'].includes(tx.status)) {
-        if (Array.isArray(existing) && existing.length > 0) {
-          const mapped = existing.map(mapItem)
-          setItems(mapped)
-          const rooms = [...new Set(mapped.map((i) => i.room))] as string[]
-          setSelectedRooms(rooms)
-          setCurrentRoom(rooms[0])
+    fetch(`/api/transactions/${txId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { property?: { addressLine1?: string; postcode?: string } } | null) => {
+        if (d?.property) {
+          const { addressLine1, postcode } = d.property
+          setPropRef([addressLine1, postcode].filter(Boolean).join(', '))
         }
-        setScreen('submitted')
-        return
-      }
-      if (tx?.status === 'SELLER_REVISION') setRevisionMode(true)
-      if (!Array.isArray(existing) || existing.length === 0) return
-      const mapped = existing.map(mapItem)
-      setItems(mapped)
-      const rooms = [...new Set(mapped.map((i) => i.room))] as string[]
-      setSelectedRooms(rooms)
-      setCurrentRoom(rooms[0])
-      setScreen('items')
-    }).catch(() => {})
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+      })
+      .catch(() => {})
   }, [txId])
 
-  function mapItem(i: any): FixturesItem {
-    return {
-      id: i.id as string,
-      room: i.room as string,
-      itemName: (i.itemName || i.description || '') as string,
-      description: (i.description || '') as string,
-      itemType: i.itemType as ItemType,
-      status: i.status as ItemStatus,
-      category: i.category ?? undefined,
-      salePrice: i.salePrice != null ? Number(i.salePrice) : undefined,
-      estimatedValue: i.estimatedValue != null ? Number(i.estimatedValue) : undefined,
-      notes: i.notes ?? undefined,
-      photoUrls: (i.photoUrls ?? []) as string[],
-      signedPhotoUrls: (i.signedPhotoUrls ?? []) as string[],
-    }
+  if (authStatus === 'loading') return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f4f3f0' }}>
+      <div style={{ width: 36, height: 36, border: '3px solid #EEEDFE', borderTopColor: '#370994', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  )
+  if (authStatus === 'unauthenticated') { router.push('/auth/signin'); return null }
+
+  const totalItems     = Object.values(roomItems).reduce((n, a) => n + a.length, 0)
+  const roomsWithItems = Object.values(roomItems).filter(a => a.length > 0).length
+
+  // ── Handlers ────────────────────────────────────────────────────────────────
+
+  function openAddItem() {
+    setEditItem(blankItem())
+    setEditIdx(null)
+    setModalMode('photo')
+    setModalOpen(true)
   }
 
-  useEffect(() => {
-    if (screen === 'items') {
-      autoSaveRef.current = setInterval(async () => { await saveItems(true) }, 60_000)
-    } else {
-      if (autoSaveRef.current) clearInterval(autoSaveRef.current)
-    }
-    return () => { if (autoSaveRef.current) clearInterval(autoSaveRef.current) }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [screen, items])
-
-  async function saveItems(silent = false) {
-    for (const item of items) {
-      const body: Record<string, any> = {
-        room: item.room,
-        itemName: item.itemName,
-        description: item.description,
-        itemType: item.itemType,
-        status: item.status,
-        category: item.category ?? null,
-        salePrice: item.status === 'FOR_SALE' ? (item.salePrice ?? null) : null,
-        estimatedValue: item.estimatedValue ?? null,
-        notes: item.notes ?? null,
-        photoUrls: item.photoUrls ?? [],
-      }
-      if (!item.id) {
-        const res = await fetch(`/api/transactions/${txId}/fixtures`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        })
-        if (res.ok) {
-          const created = await res.json()
-          setItems((prev) => prev.map((i) => (i === item ? { ...i, id: created.id } : i)))
-        }
-      } else {
-        await fetch(`/api/transactions/${txId}/fixtures/${item.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        })
-      }
-    }
-    if (!silent) console.log('Saved')
+  function openEditItem(roomId: string, idx: number) {
+    setCurRoom(roomId)
+    setEditItem({ ...roomItems[roomId][idx] })
+    setEditIdx(idx)
+    setModalMode('form')
+    setModalOpen(true)
   }
 
-  async function deleteItem(globalIdx: number) {
-    const item = items[globalIdx]
-    if (item.id) {
-      await fetch(`/api/transactions/${txId}/fixtures/${item.id}`, { method: 'DELETE' })
-    }
-    setItems((prev) => prev.filter((_, gi) => gi !== globalIdx))
+  function skipPhoto() {
+    setEditItem(blankItem())
+    setModalMode('form')
   }
 
-  async function handleSubmit() {
-    setSubmitting(true)
-    setError(null)
-    try {
-      await saveItems()
-      const res = await fetch(`/api/transactions/${txId}/submit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ipAddress: 'client',
-          userAgent: navigator.userAgent,
-          legalText: LEGAL_TEXT,
-          formVersion: '1.0',
-        }),
-      })
-      if (!res.ok) throw new Error((await res.json()).error ?? 'Submit failed')
-      setScreen('confirmation')
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  function addItem(room: string) {
-    setItems((prev) => [
-      ...prev,
-      { room, itemName: '', description: '', itemType: ItemType.FIXTURE, status: ItemStatus.INCLUDED, photoUrls: [], signedPhotoUrls: [] },
-    ])
-  }
-
-  function updateItem(globalIdx: number, patch: Partial<FixturesItem>) {
-    setItems((prev) => prev.map((i, gi) => gi === globalIdx ? { ...i, ...patch } : i))
-  }
-
-  function compressImage(file: File, maxWidth = 1200): Promise<string> {
-    return new Promise((resolve, reject) => {
+  function resizeDataUrl(dataUrl: string, maxPx = 1000): Promise<string> {
+    return new Promise(resolve => {
       const img = new Image()
-      const objectUrl = URL.createObjectURL(file)
       img.onload = () => {
-        URL.revokeObjectURL(objectUrl)
-        const scale = Math.min(1, maxWidth / img.width)
+        const scale = Math.min(1, maxPx / Math.max(img.width, img.height))
+        const w = Math.round(img.width * scale)
+        const h = Math.round(img.height * scale)
         const canvas = document.createElement('canvas')
-        canvas.width = Math.round(img.width * scale)
-        canvas.height = Math.round(img.height * scale)
-        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
-        resolve(canvas.toDataURL('image/jpeg', 0.8))
+        canvas.width = w; canvas.height = h
+        canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
+        resolve(canvas.toDataURL('image/jpeg', 0.85))
       }
-      img.onerror = reject
-      img.src = objectUrl
+      img.onerror = () => resolve(dataUrl)
+      img.src = dataUrl
     })
   }
 
-  async function handlePhotoUpload(globalIdx: number, e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files
-    if (!files || files.length === 0) return
-    const item = items[globalIdx]
-    if (!item.itemName.trim()) {
-      alert('Add an item name first before uploading photos.')
-      e.target.value = ''
+  async function handlePhoto(file: File) {
+    let dataUrl: string | null = null
+    try {
+      const raw = await new Promise<string>((res, rej) => {
+        const fr = new FileReader()
+        fr.onload = e => res(e.target!.result as string)
+        fr.onerror = () => rej(new Error('FileReader failed'))
+        fr.readAsDataURL(file)
+      })
+      dataUrl = await resizeDataUrl(raw)
+    } catch (err) {
+      console.error('[handlePhoto] image read error:', err)
       return
     }
-    setUploadingIdx(globalIdx)
+
+    setModalMode('analyzing')
     try {
-      let itemId = item.id
-      if (!itemId) {
-        const res = await fetch(`/api/transactions/${txId}/fixtures`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            room: item.room, itemName: item.itemName || item.description, description: item.description,
-            itemType: item.itemType, status: item.status, photoUrls: [],
-          }),
-        })
-        if (!res.ok) throw new Error('Could not save item')
-        const created = await res.json()
-        itemId = created.id
-        setItems((prev) => prev.map((i, gi) => gi === globalIdx ? { ...i, id: created.id } : i))
-      }
-      const newDataUrls: string[] = []
-      for (const file of Array.from(files)) {
-        const dataUrl = await compressImage(file)
-        newDataUrls.push(dataUrl)
-      }
-      if (newDataUrls.length > 0) {
-        const updatedUrls = [...(item.photoUrls ?? []), ...newDataUrls]
-        await fetch(`/api/transactions/${txId}/fixtures/${itemId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ photoUrls: updatedUrls }),
-        })
-        setItems((prev) => prev.map((it, gi) => gi === globalIdx
-          ? { ...it, photoUrls: updatedUrls, signedPhotoUrls: updatedUrls }
-          : it
-        ))
-      }
-    } catch (err: any) {
-      alert(err.message ?? 'Photo upload failed')
-    } finally {
-      setUploadingIdx(null)
-      e.target.value = ''
-    }
-  }
-
-  async function deletePhoto(globalIdx: number, photoIdx: number) {
-    const item = items[globalIdx]
-    if (!item.id) return
-    const key = item.photoUrls[photoIdx]
-    setDeletingPhoto(key)
-    try {
-      const updatedKeys = item.photoUrls.filter((_, i) => i !== photoIdx)
-      await fetch(`/api/transactions/${txId}/fixtures/${item.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ photoUrls: updatedKeys }),
-      })
-      setItems((prev) => prev.map((it, gi) => gi === globalIdx
-        ? { ...it, photoUrls: updatedKeys, signedPhotoUrls: it.signedPhotoUrls.filter((_, i) => i !== photoIdx) }
-        : it
-      ))
-    } finally {
-      setDeletingPhoto(null)
-    }
-  }
-
-  useEffect(() => {
-    if (!showAddRoom) return
-    function close(e: MouseEvent) {
-      const target = e.target as HTMLElement
-      if (!target.closest('[data-add-room]')) setShowAddRoom(false)
-    }
-    document.addEventListener('mousedown', close)
-    return () => document.removeEventListener('mousedown', close)
-  }, [showAddRoom])
-
-  function handleAddRoom(room: string) {
-    const trimmed = room.trim()
-    if (!trimmed) return
-    if (!selectedRooms.includes(trimmed)) {
-      setSelectedRooms((prev) => [...prev, trimmed])
-    }
-    setCurrentRoom(trimmed)
-    setShowAddRoom(false)
-    setCustomRoom('')
-  }
-
-  async function handleRemoveRoom(room: string) {
-    const roomItemsList = roomItems(room)
-    if (roomItemsList.length > 0) {
-      if (!confirm(`Remove "${room}" and delete its ${roomItemsList.length} item(s)?`)) return
-      for (const item of roomItemsList) {
-        if (item.id) {
-          await fetch(`/api/transactions/${txId}/fixtures/${item.id}`, { method: 'DELETE' })
-        }
-      }
-      setItems((prev) => prev.filter((i) => i.room !== room))
-    }
-    const remaining = selectedRooms.filter((r) => r !== room)
-    setSelectedRooms(remaining)
-    if (currentRoom === room) setCurrentRoom(remaining[0] ?? '')
-  }
-
-  function openAddModal(defaultRoom = '') {
-    modalPreviews.forEach((url) => URL.revokeObjectURL(url))
-    setModal({ room: defaultRoom || currentRoom || '', name: '', notes: '', estimatedValue: '', status: 'INCLUDED' as ItemStatus, itemType: 'FIXTURE' as ItemType, category: '' })
-    setModalFiles([])
-    setModalPreviews([])
-    setModalError(null)
-    setShowModal(true)
-  }
-
-  function handleModalFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? [])
-    if (!files.length) return
-    setModalFiles((prev) => [...prev, ...files])
-    setModalPreviews((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))])
-    e.target.value = ''
-  }
-
-  function removeModalFile(idx: number) {
-    URL.revokeObjectURL(modalPreviews[idx])
-    setModalFiles((prev) => prev.filter((_, i) => i !== idx))
-    setModalPreviews((prev) => prev.filter((_, i) => i !== idx))
-  }
-
-  async function handleAddFromModal() {
-    if (!modal.room || !modal.name.trim()) return
-    setSavingModal(true)
-    setModalError(null)
-    try {
-      const body: Record<string, any> = {
-        room: modal.room,
-        itemName: modal.name.trim(),
-        description: modal.notes.trim(),
-        itemType: modal.itemType,
-        status: modal.status,
-        photoUrls: [],
-      }
-      if (modal.category) body.category = modal.category
-      if (modal.estimatedValue) {
-        const val = Number(modal.estimatedValue)
-        if (modal.status === 'FOR_SALE') body.salePrice = val
-        else body.estimatedValue = val
-      }
-
-      const res = await fetch(`/api/transactions/${txId}/fixtures`, {
+      const r = await fetch(`/api/transactions/${txId}/ffa/item-lookup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ photoDataUrl: dataUrl, ta10Category: curRoom }),
       })
-
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}))
-        const msg = typeof errBody.error === 'string'
-          ? errBody.error
-          : (errBody.error?.formErrors?.[0] ?? `Error ${res.status}`)
-        setModalError(msg)
-        return
+      if (!r.ok) {
+        const errText = await r.text().catch(() => r.status.toString())
+        throw new Error(`lookup ${r.status}: ${errText}`)
       }
+      const d = await r.json() as Record<string, unknown>
+      const sdlt = typeof d.sdlt_sensitivity === 'string'
+        ? (d.sdlt_sensitivity.toLowerCase() as Sdlt)
+        : 'low'
+      const st: Status = d.suggested_status === 'Exclude' ? 'exclude' : d.suggested_status === 'Negotiate' ? 'negotiate' : 'include'
+      setEditItem({
+        id: crypto.randomUUID(),
+        title:     String(d.item_name ?? ''),
+        brand:     [d.brand, d.model].filter(Boolean).join(' '),
+        price:     typeof d.estimated_value === 'number' ? d.estimated_value : null,
+        sdlt,
+        notes:     '',
+        status:    st,
+        imgData:   dataUrl,
+        reasoning: typeof d.reasoning === 'string' ? d.reasoning : undefined,
+      })
+    } catch (err) {
+      console.error('[handlePhoto] API error:', err)
+      setEditItem({ ...blankItem(), imgData: dataUrl })
+    }
+    setModalMode('form')
+  }
 
-      const created = await res.json()
+  function saveItem() {
+    if (!editItem.title.trim()) return
+    setRoomItems(prev => {
+      const arr = [...prev[curRoom]]
+      editIdx !== null ? (arr[editIdx] = editItem) : arr.push(editItem)
+      return { ...prev, [curRoom]: arr }
+    })
+    setModalOpen(false)
+  }
 
-      // Upload photos if any were attached
-      if (modalFiles.length > 0) {
-        const dataUrls: string[] = []
-        for (const file of modalFiles) {
-          dataUrls.push(await compressImage(file))
-        }
-        if (dataUrls.length > 0) {
-          await fetch(`/api/transactions/${txId}/fixtures/${created.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ photoUrls: dataUrls }),
-          })
-          created.photoUrls = dataUrls
-          created.signedPhotoUrls = dataUrls
-        }
+  function deleteItem() {
+    setRoomItems(prev => ({
+      ...prev,
+      [curRoom]: prev[curRoom].filter((_, i) => i !== editIdx),
+    }))
+    setModalOpen(false)
+  }
+
+  async function handleSubmit() {
+    setSubmitErr('')
+    setScreen('submitting')
+    const items = ROOMS.flatMap(r =>
+      roomItems[r.id].map(item => ({
+        item_name:         item.title,
+        brand:             item.brand,
+        model:             '',
+        estimated_value:   item.price,
+        sdlt_sensitivity:  item.sdlt === 'high' ? 'High' : item.sdlt === 'medium' ? 'Medium' : 'Low',
+        notes:             item.notes,
+        status:            item.status === 'include' ? 'Include' : item.status === 'exclude' ? 'Exclude' : 'Negotiate',
+        room:              r.name,
+        ...(item.imgData ? { image: item.imgData.split(',')[1] } : {}),
+      }))
+    )
+    try {
+      const r = await fetch(`/api/transactions/${txId}/ffa/direct-submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ property_reference: propRef, items }),
+      })
+      const d = await r.json() as { submission_id?: string; error?: string }
+      if (d.submission_id) {
+        setSubId(d.submission_id)
+        setScreen('done')
+      } else {
+        setSubmitErr(d.error || 'Submission failed')
+        setScreen('review')
       }
-
-      // Add new item directly to state — no second GET needed
-      const newItem = mapItem(created)
-      setItems((prev) => [...prev, newItem])
-      if (!selectedRooms.includes(modal.room)) {
-        setSelectedRooms((prev) => [...prev, modal.room])
-      }
-      setCurrentRoom(modal.room)
-      modalPreviews.forEach((url) => URL.revokeObjectURL(url))
-      setShowModal(false)
-    } catch (err: any) {
-      setModalError(err.message ?? 'Failed to add item')
-    } finally {
-      setSavingModal(false)
+    } catch {
+      setSubmitErr('Network error — please try again')
+      setScreen('review')
     }
   }
 
-  const roomItems = (room: string) => items.filter((i) => i.room === room)
-
-  // ── Screens ───────────────────────────────────────────────────────────────
-
-  if (screen === 'welcome') {
-    return (
-      <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="max-w-lg w-full bg-white rounded-xl shadow p-8">
-          <div className="w-12 h-12 bg-blue-900 rounded-lg flex items-center justify-center mb-6">
-            <span className="text-white font-bold text-lg">FFA</span>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Fixtures & Fittings Form</h1>
-          <p className="text-gray-600 mb-6">
-            This form (TA10) records which items are included or excluded from your property sale.
-            Completing it accurately protects both you and your buyer.
-          </p>
-          <ul className="space-y-2 mb-8 text-sm text-gray-700">
-            <li className="flex gap-2"><span className="text-blue-600">1.</span> Select rooms in your property</li>
-            <li className="flex gap-2"><span className="text-blue-600">2.</span> List fixtures and fittings in each room</li>
-            <li className="flex gap-2"><span className="text-blue-600">3.</span> Review and confirm the legal declaration</li>
-          </ul>
-          <button
-            onClick={() => setScreen('rooms')}
-            className="w-full bg-blue-900 text-white py-3 rounded-lg font-semibold hover:bg-blue-800 transition"
-          >
-            Start Form
-          </button>
-          <button
-            type="button"
-            onClick={() => signOut({ callbackUrl: '/auth/signin' })}
-            className="w-full mt-3 border border-gray-300 text-gray-600 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
-          >
-            Exit
-          </button>
-        </div>
-      </main>
+  function buildPayload() {
+    return ROOMS.flatMap(r =>
+      roomItems[r.id].map(item => ({
+        room:    r.name,
+        title:   item.title,
+        brand:   item.brand,
+        price:   item.price,
+        sdlt:    item.sdlt,
+        notes:   item.notes,
+        status:  item.status,
+        imgData: item.imgData,
+      }))
     )
   }
 
-  if (screen === 'submitted') {
-    return (
-      <main className="min-h-screen bg-slate-50 p-4">
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">Fixtures & Fittings — Submitted</h1>
-              <p className="text-sm text-gray-500 mt-1">Your form has been submitted and is now read-only.</p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => window.open(`/seller/${txId}/print`, '_blank')}
-                className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50"
-              >
-                Print / PDF
-              </button>
-              <button
-                onClick={() => signOut({ callbackUrl: '/auth/signin' })}
-                className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
-              >
-                Exit
-              </button>
-            </div>
-          </div>
-          {selectedRooms.map((room) => (
-            <div key={room} className="mb-5">
-              <h2 className="font-semibold text-gray-800 mb-2">{room}</h2>
-              {roomItems(room).length === 0 ? (
-                <p className="text-gray-400 text-sm italic">No items</p>
-              ) : (
-                <div className="space-y-2">
-                  {roomItems(room).map((item, i) => (
-                    <div key={i} className="bg-white border rounded-xl p-3 text-sm">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900">{item.itemName || item.description}</p>
-                          {item.description && item.itemName && <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>}
-                          {item.category && <p className="text-xs text-gray-400">{item.category}</p>}
-                          {item.notes && <p className="text-xs text-gray-400 mt-0.5">{item.notes}</p>}
-                        </div>
-                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                            item.status === 'INCLUDED' ? 'bg-green-50 text-green-700' :
-                            item.status === 'EXCLUDED' ? 'bg-red-50 text-red-700' :
-                            item.status === 'FOR_SALE' ? 'bg-purple-50 text-purple-700' :
-                            'bg-amber-50 text-amber-700'
-                          }`}>{item.status}</span>
-                          {item.status === 'FOR_SALE' && item.salePrice && (
-                            <span className="text-xs text-gray-500">Sale price: £{item.salePrice}</span>
-                          )}
-                          {item.estimatedValue && <span className="text-xs text-gray-500">£{item.estimatedValue}</span>}
-                        </div>
-                      </div>
-                      {item.signedPhotoUrls.length > 0 && (
-                        <div className="flex gap-2 mt-3 flex-wrap">
-                          {item.signedPhotoUrls.map((url, pi) => (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              key={pi} src={url} alt={`Photo ${pi + 1}`}
-                              className="w-28 h-20 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 shadow-sm"
-                              onClick={() => window.open(url, '_blank')}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </main>
-    )
+  async function handleSave() {
+    if (saveStatus === 'saving') return
+    setSaveStatus('saving')
+    try {
+      const r = await fetch(`/api/transactions/${txId}/ffa/save-draft`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: buildPayload() }),
+      })
+      if (!r.ok) throw new Error('save failed')
+      setSaveStatus('saved')
+      setTimeout(() => setSaveStatus('idle'), 2500)
+    } catch {
+      setSaveStatus('error')
+      setTimeout(() => setSaveStatus('idle'), 3000)
+    }
   }
 
-  if (screen === 'rooms') {
-    return (
-      <main className="min-h-screen bg-slate-50 p-4">
-        <div className="max-w-2xl mx-auto">
-          <h1 className="text-xl font-bold text-gray-900 mb-1">Select Rooms</h1>
-          <p className="text-gray-500 text-sm mb-6">Choose all rooms that apply to your property.</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
-            {TA10_ROOMS.map((room) => (
-              <button
-                key={room}
-                onClick={() =>
-                  setSelectedRooms((prev) =>
-                    prev.includes(room) ? prev.filter((r) => r !== room) : [...prev, room],
-                  )
-                }
-                className={`p-3 rounded-lg border-2 text-sm font-medium transition ${
-                  selectedRooms.includes(room)
-                    ? 'border-blue-600 bg-blue-50 text-blue-800'
-                    : 'border-gray-200 text-gray-700 hover:border-blue-300'
-                }`}
-              >
-                {room}
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => signOut({ callbackUrl: '/auth/signin' })}
-              className="flex-1 border border-gray-300 text-gray-600 py-3 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
-            >
-              Exit
-            </button>
-            <button
-              disabled={selectedRooms.length === 0}
-              onClick={() => { setCurrentRoom(selectedRooms[0]); setScreen('items') }}
-              className="flex-1 bg-blue-900 text-white py-3 rounded-lg font-semibold hover:bg-blue-800 disabled:opacity-40 transition"
-            >
-              Next — Add Items ({selectedRooms.length} room{selectedRooms.length !== 1 ? 's' : ''})
-            </button>
-          </div>
-        </div>
-      </main>
-    )
+  async function handleReviewAndSubmit() {
+    setSubmitErr('')
+    setScreen('submitting')
+    try {
+      const r = await fetch(`/api/transactions/${txId}/ffa/seller-submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ property_reference: propRef, items: buildPayload() }),
+      })
+      const d = await r.json() as { submitted?: boolean; error?: string }
+      if (d.submitted) {
+        setScreen('done')
+      } else {
+        setSubmitErr(d.error || 'Submission failed')
+        setScreen('review')
+      }
+    } catch {
+      setSubmitErr('Network error — please try again')
+      setScreen('review')
+    }
   }
 
-  if (screen === 'items') {
-    const roomIdx = selectedRooms.indexOf(currentRoom)
-    return (
-      <main className="min-h-screen bg-slate-50 p-4">
-        <div className="max-w-2xl mx-auto">
-          {revisionMode && (
-            <div className="bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 mb-4 text-sm text-amber-900">
-              <strong>Revision requested</strong> — your conveyancer has asked you to review and update this form. Make your changes and re-submit when ready.
-            </div>
-          )}
-          {/* Room tabs with add / remove */}
-          <div className="relative mb-6">
-            <div className="flex gap-2 overflow-x-auto pb-1 items-center">
-              {selectedRooms.map((room) => (
-                <div key={room} className="relative flex-shrink-0">
-                  <button
-                    onClick={() => setCurrentRoom(room)}
-                    className={`pl-3 pr-8 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition ${
-                      room === currentRoom ? 'bg-blue-900 text-white' : 'bg-white border text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    {room} ({roomItems(room).length})
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleRemoveRoom(room) }}
-                    className={`absolute right-2 top-1/2 -translate-y-1/2 text-base leading-none transition ${
-                      room === currentRoom ? 'text-blue-300 hover:text-white' : 'text-gray-300 hover:text-red-500'
-                    }`}
-                    title={`Remove ${room}`}
-                  >×</button>
-                </div>
-              ))}
-              <button
-                data-add-room
-                onClick={() => setShowAddRoom((v) => !v)}
-                className="flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium border-2 border-dashed border-blue-200 text-blue-600 hover:bg-blue-50 whitespace-nowrap"
-              >
-                + Add Room
-              </button>
-            </div>
+  // ── Shared styles ────────────────────────────────────────────────────────────
 
-            {/* Add room dropdown */}
-            {showAddRoom && (
-              <div data-add-room className="absolute top-full left-0 mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-72">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Select a room</p>
-                <div className="space-y-0.5 mb-3 max-h-44 overflow-y-auto">
-                  {TA10_ROOMS.filter((r) => !selectedRooms.includes(r)).map((room) => (
-                    <button
-                      key={room}
-                      onClick={() => handleAddRoom(room)}
-                      className="w-full text-left px-3 py-1.5 text-sm rounded-lg hover:bg-blue-50 text-gray-700 hover:text-blue-900"
-                    >
-                      {room}
-                    </button>
-                  ))}
-                  {TA10_ROOMS.every((r) => selectedRooms.includes(r)) && (
-                    <p className="text-xs text-gray-400 italic px-3 py-1">All standard rooms added</p>
-                  )}
-                </div>
-                <div className="flex gap-2 border-t pt-2">
-                  <input
-                    placeholder="Custom room name…"
-                    value={customRoom}
-                    onChange={(e) => setCustomRoom(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddRoom(customRoom) }}
-                    className="flex-1 border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button
-                    onClick={() => handleAddRoom(customRoom)}
-                    disabled={!customRoom.trim()}
-                    className="bg-blue-900 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-800 disabled:opacity-40"
-                  >
-                    Add
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">{currentRoom}</h2>
-            <div className="flex gap-2">
-              <button
-                onClick={() => signOut({ callbackUrl: '/auth/signin' })}
-                className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
-              >
-                Exit
-              </button>
-              <button
-                onClick={() => window.open(`/seller/${txId}/print`, '_blank')}
-                className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50"
-              >
-                Print / PDF
-              </button>
-              <button
-                onClick={() => openAddModal(currentRoom)}
-                className="bg-blue-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-800"
-              >
-                + Add Item
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-4 mb-6">
-            {roomItems(currentRoom).map((item, idx) => {
-              const globalIdx = items.findIndex((i) => i === item)
-              return (
-                <div key={idx} className="bg-white rounded-xl border p-4 shadow-sm">
-                  {/* Item name */}
-                  <div className="mb-3">
-                    <input
-                      placeholder="Item name (e.g. Integrated dishwasher)"
-                      value={item.itemName}
-                      onChange={(e) => updateItem(globalIdx, { itemName: e.target.value })}
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  {/* Photos — prominent, above dropdowns */}
-                  <div className="mb-3 border border-dashed border-gray-200 rounded-lg p-3 bg-gray-50">
-                    <p className="text-xs font-medium text-gray-500 mb-2">Photos</p>
-                    {item.signedPhotoUrls.length > 0 ? (
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {item.signedPhotoUrls.map((url, pi) => (
-                          <div key={pi} className="relative group">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={url}
-                              alt={`Photo ${pi + 1}`}
-                              className="w-28 h-20 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 shadow-sm"
-                              onClick={() => window.open(url, '_blank')}
-                            />
-                            <button
-                              type="button"
-                              disabled={deletingPhoto === item.photoUrls[pi]}
-                              onClick={() => deletePhoto(globalIdx, pi)}
-                              className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-600 transition"
-                              title="Remove photo"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-gray-400 italic mb-2">No photos yet</p>
-                    )}
-                    <div className="flex gap-2 flex-wrap">
-                      <label className={`cursor-pointer inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-lg border transition ${
-                        uploadingIdx === globalIdx ? 'opacity-50 pointer-events-none bg-gray-100' : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
-                      }`}>
-                        {uploadingIdx === globalIdx ? '⏳ Uploading…' : '📁 Add from files'}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          className="hidden"
-                          onChange={(e) => handlePhotoUpload(globalIdx, e)}
-                          disabled={uploadingIdx !== null}
-                        />
-                      </label>
-                      <label className={`cursor-pointer inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-lg border transition ${
-                        uploadingIdx === globalIdx ? 'opacity-50 pointer-events-none' : 'border-blue-300 text-blue-700 bg-white hover:bg-blue-50'
-                      }`}>
-                        📷 Use camera
-                        <input
-                          type="file"
-                          accept="image/*"
-                          capture="environment"
-                          className="hidden"
-                          onChange={(e) => handlePhotoUpload(globalIdx, e)}
-                          disabled={uploadingIdx !== null}
-                        />
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Status / Value / Notes */}
-                  <div className="grid gap-3">
-                    <select
-                      value={item.itemType}
-                      onChange={(e) => updateItem(globalIdx, { itemType: e.target.value as ItemType })}
-                      className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {ITEM_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                    </select>
-                    <div className="grid grid-cols-2 gap-2">
-                      <select
-                        value={item.status}
-                        onChange={(e) => updateItem(globalIdx, { status: e.target.value as ItemStatus })}
-                        className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="INCLUDED">Included in sale</option>
-                        <option value="EXCLUDED">Excluded from sale</option>
-                        <option value="NEGOTIABLE">Negotiable</option>
-                        <option value="REMOVED_PRIOR">Removed prior to sale</option>
-                        <option value="FOR_SALE">For sale separately</option>
-                      </select>
-                      {item.status === 'FOR_SALE' ? (
-                        <input
-                          type="number"
-                          placeholder="Sale price (£)"
-                          value={item.salePrice ?? ''}
-                          onChange={(e) => updateItem(globalIdx, { salePrice: Number(e.target.value) || undefined })}
-                          className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      ) : (
-                        <input
-                          type="number"
-                          placeholder="Estimated value (£)"
-                          value={item.estimatedValue ?? ''}
-                          onChange={(e) => updateItem(globalIdx, { estimatedValue: Number(e.target.value) || undefined })}
-                          className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      )}
-                    </div>
-
-                    <textarea
-                      placeholder="Description (optional)"
-                      value={item.notes ?? ''}
-                      rows={2}
-                      onChange={(e) => updateItem(globalIdx, { notes: e.target.value })}
-                      className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() => { if (confirm('Remove this item?')) deleteItem(globalIdx) }}
-                      className="w-full border border-red-200 text-red-600 py-2 rounded-lg text-sm font-medium hover:bg-red-50 hover:border-red-300 transition"
-                    >
-                      Remove Item
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
-            {roomItems(currentRoom).length === 0 && (
-              <p className="text-gray-400 text-sm italic text-center py-8">
-                No items yet — use the button below to start
-              </p>
-            )}
-            {/* Add Item button at bottom of list */}
-            <button
-              onClick={() => openAddModal(currentRoom)}
-              className="w-full border-2 border-dashed border-blue-200 text-blue-700 py-4 rounded-xl text-sm font-semibold hover:border-blue-400 hover:bg-blue-50 transition"
-            >
-              + Add Item to {currentRoom}
-            </button>
-          </div>
-
-          <div className="flex gap-3">
-            {roomIdx > 0 && (
-              <button
-                onClick={() => setCurrentRoom(selectedRooms[roomIdx - 1])}
-                className="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-50"
-              >
-                ← Previous Room
-              </button>
-            )}
-            {roomIdx < selectedRooms.length - 1 ? (
-              <button
-                onClick={() => setCurrentRoom(selectedRooms[roomIdx + 1])}
-                className="flex-1 bg-blue-900 text-white py-3 rounded-lg font-semibold hover:bg-blue-800"
-              >
-                Next Room →
-              </button>
-            ) : (
-              <button
-                onClick={() => setScreen('review')}
-                className="flex-1 bg-blue-900 text-white py-3 rounded-lg font-semibold hover:bg-blue-800"
-              >
-                Review Summary →
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Add Item Modal */}
-        {showModal && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50">
-            <div className="w-full max-w-lg bg-white rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[92vh] flex flex-col">
-
-              {/* Header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b flex-shrink-0">
-                <h2 className="text-base font-bold text-gray-900">Add New Item</h2>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="text-gray-400 hover:text-gray-600 text-2xl leading-none w-8 h-8 flex items-center justify-center"
-                >×</button>
-              </div>
-
-              {/* Scrollable body */}
-              <div className="overflow-y-auto flex-1 p-5 space-y-4">
-
-                {/* Room */}
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
-                    Area / Room <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={modal.room}
-                    onChange={(e) => setModal((m) => ({ ...m, room: e.target.value }))}
-                    className="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  >
-                    <option value="">— Select room —</option>
-                    {TA10_ROOMS.map((r) => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                </div>
-
-                {/* Item Name */}
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
-                    Item Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    placeholder="e.g. Integrated dishwasher, Fitted wardrobe"
-                    value={modal.name}
-                    onChange={(e) => setModal((m) => ({ ...m, name: e.target.value }))}
-                    className="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Item Type */}
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Item Type</label>
-                  <select
-                    value={modal.itemType}
-                    onChange={(e) => setModal((m) => ({ ...m, itemType: e.target.value as ItemType }))}
-                    className="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  >
-                    {ITEM_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
-                </div>
-
-                {/* Description */}
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Description</label>
-                  <textarea
-                    placeholder="Condition, usability or additional details (optional)"
-                    value={modal.notes}
-                    rows={2}
-                    onChange={(e) => setModal((m) => ({ ...m, notes: e.target.value }))}
-                    className="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                  />
-                </div>
-
-                {/* Status */}
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Included / Excluded</label>
-                  <select
-                    value={modal.status}
-                    onChange={(e) => setModal((m) => ({ ...m, status: e.target.value as ItemStatus }))}
-                    className="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  >
-                    <option value="INCLUDED">Included in sale</option>
-                    <option value="EXCLUDED">Excluded from sale</option>
-                    <option value="NEGOTIABLE">Negotiable</option>
-                    <option value="REMOVED_PRIOR">Removed prior to sale</option>
-                    <option value="FOR_SALE">For sale separately</option>
-                  </select>
-                </div>
-
-                {/* Category */}
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Category</label>
-                  <select
-                    value={modal.category}
-                    onChange={(e) => setModal((m) => ({ ...m, category: e.target.value }))}
-                    className="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  >
-                    <option value="">— Select category (optional) —</option>
-                    {TA10_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-
-                {/* Price */}
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
-                    {modal.status === 'FOR_SALE' ? 'Sale Price (£)' : 'Estimated Value (£)'}
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="0"
-                    min="0"
-                    value={modal.estimatedValue}
-                    onChange={(e) => setModal((m) => ({ ...m, estimatedValue: e.target.value }))}
-                    className="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Photos */}
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Photo</label>
-                  {modalPreviews.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {modalPreviews.map((url, i) => (
-                        <div key={i} className="relative group">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={url} alt={`Preview ${i + 1}`} className="w-24 h-16 object-cover rounded-lg border border-gray-200 shadow-sm" />
-                          <button
-                            type="button"
-                            onClick={() => removeModalFile(i)}
-                            className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600"
-                          >×</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="flex gap-2">
-                    <label className="cursor-pointer flex-1 flex items-center justify-center gap-1.5 text-sm font-medium px-3 py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition">
-                      📁 Add Files
-                      <input type="file" accept="image/*" multiple className="hidden" onChange={handleModalFileSelect} />
-                    </label>
-                    <label className="cursor-pointer flex-1 flex items-center justify-center gap-1.5 text-sm font-medium px-3 py-2.5 rounded-lg border border-blue-300 text-blue-700 hover:bg-blue-50 transition">
-                      📷 Camera
-                      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleModalFileSelect} />
-                    </label>
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Footer */}
-              <div className="border-t px-5 py-4 flex-shrink-0 bg-white">
-                {modalError && (
-                  <p className="text-red-600 text-sm mb-3">{modalError}</p>
-                )}
-                <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 border border-gray-300 text-gray-700 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={!modal.room || !modal.name.trim() || savingModal}
-                  onClick={handleAddFromModal}
-                  className="flex-1 bg-blue-900 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-800 disabled:opacity-40 transition"
-                >
-                  {savingModal ? 'Adding…' : 'Add Item'}
-                </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-      </main>
-    )
+  const fieldLabel: React.CSSProperties = {
+    fontSize: 11, fontWeight: 500, color: C.textMuted, marginBottom: 3, marginTop: 10,
+    display: 'block', textTransform: 'uppercase', letterSpacing: '0.03em',
+  }
+  const fieldInput: React.CSSProperties = {
+    width: '100%', padding: '10px 12px', border: `0.5px solid ${C.border}`,
+    borderRadius: 8, fontSize: 14, fontFamily: 'inherit', background: C.bg,
+    color: C.text, boxSizing: 'border-box',
+  }
+  const btnPrimary: React.CSSProperties = {
+    width: '100%', padding: 15, background: C.purple, color: '#fff', border: 'none',
+    borderRadius: 12, fontSize: 15, fontWeight: 600, cursor: 'pointer', marginTop: 4,
+  }
+  const btnSecondary: React.CSSProperties = {
+    width: '100%', padding: 13, border: `0.5px solid ${C.border}`, borderRadius: 12,
+    background: C.bg, fontSize: 14, fontWeight: 500, color: C.textMuted, cursor: 'pointer', marginTop: 8,
   }
 
-  if (screen === 'review') {
-    return (
-      <main className="min-h-screen bg-slate-50 p-4">
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-start justify-between mb-2 flex-wrap gap-3">
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">Review Your Form</h1>
-              <p className="text-gray-500 text-sm">{items.length} item(s) across {selectedRooms.length} room(s)</p>
-            </div>
-            <button
-              onClick={() => window.open(`/seller/${txId}/print`, '_blank')}
-              className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50"
-            >
-              Print / Save as PDF
-            </button>
-          </div>
+  const headerSub =
+    screen === 'home'   ? (propRef || 'TA10 Digital Form') :
+    screen === 'room'   ? (ROOMS.find(r => r.id === curRoom)?.name ?? '') :
+    screen === 'review' ? 'Review all items' : ''
 
-          <div className="mb-6 mt-6">
-            {selectedRooms.map((room) => (
-              <div key={room} className="mb-5">
-                <h2 className="font-semibold text-gray-800 mb-2">{room}</h2>
-                {roomItems(room).length === 0 ? (
-                  <p className="text-gray-400 text-sm italic">No items</p>
-                ) : (
-                  <div className="space-y-2">
-                    {roomItems(room).map((item, i) => (
-                      <div key={i} className="bg-white border rounded-xl p-3 text-sm">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900">{item.itemName || item.description || <span className="text-red-400 italic">Missing item name</span>}</p>
-                            {item.description && item.itemName && <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>}
-                            {item.category && <p className="text-xs text-gray-400">{item.category}</p>}
-                            {item.notes && <p className="text-xs text-gray-400 mt-0.5">{item.notes}</p>}
-                          </div>
-                          <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                              item.status === 'INCLUDED' ? 'bg-green-50 text-green-700' :
-                              item.status === 'EXCLUDED' ? 'bg-red-50 text-red-700' :
-                              item.status === 'FOR_SALE' ? 'bg-purple-50 text-purple-700' :
-                              'bg-amber-50 text-amber-700'
-                            }`}>{item.status}</span>
-                            {item.status === 'FOR_SALE' && item.salePrice && (
-                              <span className="text-xs text-gray-500">Sale price: £{item.salePrice}</span>
-                            )}
-                            {item.estimatedValue && <span className="text-xs text-gray-500">£{item.estimatedValue}</span>}
-                          </div>
-                        </div>
-                        {item.signedPhotoUrls.length > 0 && (
-                          <div className="flex gap-2 mt-3 flex-wrap">
-                            {item.signedPhotoUrls.map((url, pi) => (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                key={pi} src={url} alt={`Photo ${pi + 1}`}
-                                className="w-28 h-20 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 shadow-sm"
-                                onClick={() => window.open(url, '_blank')}
-                              />
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => signOut({ callbackUrl: '/auth/signin' })}
-              className="flex-1 border border-gray-300 text-gray-600 py-3 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
-            >
-              Exit
-            </button>
-            <button onClick={() => setScreen('items')} className="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg">
-              Edit Items
-            </button>
-            <button onClick={() => setScreen('legal')} className="flex-1 bg-blue-900 text-white py-3 rounded-lg font-semibold hover:bg-blue-800">
-              Continue to Declaration
-            </button>
-          </div>
-        </div>
-      </main>
-    )
-  }
-
-  if (screen === 'legal') {
-    return (
-      <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="max-w-lg w-full bg-white rounded-xl shadow p-8">
-          <h1 className="text-xl font-bold text-gray-900 mb-4">Legal Declaration</h1>
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-            <p className="text-sm text-amber-900 leading-relaxed">{LEGAL_TEXT}</p>
-          </div>
-          <label className="flex items-start gap-3 mb-6 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={legalAgreed}
-              onChange={(e) => setLegalAgreed(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-gray-300"
-            />
-            <span className="text-sm text-gray-700">
-              I have read and I agree to the declaration above.
-            </span>
-          </label>
-          {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => signOut({ callbackUrl: '/auth/signin' })}
-              className="flex-1 border border-gray-300 text-gray-600 py-3 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
-            >
-              Exit
-            </button>
-            <button onClick={() => setScreen('review')} className="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg">
-              Back
-            </button>
-            <button
-              disabled={!legalAgreed || submitting}
-              onClick={handleSubmit}
-              className="flex-1 bg-blue-900 text-white py-3 rounded-lg font-semibold hover:bg-blue-800 disabled:opacity-40"
-            >
-              {submitting ? 'Submitting…' : 'Complete & Submit Form'}
-            </button>
-          </div>
-        </div>
-      </main>
-    )
-  }
+  const _ = subId // suppress unused warning
 
   return (
-    <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="max-w-lg w-full bg-white rounded-xl shadow p-8 text-center">
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
+    <>
+      <style>{`
+        *{box-sizing:border-box}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+      `}</style>
+      <div style={{ background: '#f4f3f0', minHeight: '100vh', fontFamily: "'Inter',sans-serif" }}>
+        <div style={{ maxWidth: 500, margin: '0 auto', background: C.bg, minHeight: '100vh', paddingBottom: 40 }}>
+
+          {/* ── Header ── */}
+          <div style={{ padding: '14px 16px 12px', borderBottom: `0.5px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 10, position: 'sticky', top: 0, background: C.bg, zIndex: 100 }}>
+            {screen !== 'home' && screen !== 'submitting' && screen !== 'done' && (
+              <button onClick={() => setScreen('home')} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: C.textMuted, padding: 4, lineHeight: 1 }}>←</button>
+            )}
+            <div style={{ width: 30, height: 30, background: C.purple, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 11, flexShrink: 0 }}>FFA</div>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>Fixtures &amp; Fittings</p>
+              <p style={{ fontSize: 11, color: C.textMuted, margin: 0 }}>{headerSub}</p>
+            </div>
+            {screen !== 'submitting' && screen !== 'done' && (
+              <button onClick={() => setShowExitDlg(true)}
+                style={{ padding: '5px 12px', border: `0.5px solid ${C.border}`, borderRadius: 20, background: C.bg, fontSize: 12, color: C.textMuted, cursor: 'pointer', flexShrink: 0 }}>
+                Exit
+              </button>
+            )}
+          </div>
+
+          {/* ── HOME ── */}
+          {screen === 'home' && (
+            <div style={{ padding: 16 }}>
+              <input
+                style={{ width: '100%', padding: '11px 14px', border: `0.5px solid ${C.border}`, borderRadius: 8, fontSize: 14, fontFamily: 'inherit', marginBottom: 16, boxSizing: 'border-box' }}
+                type="text" placeholder="Property address (optional)"
+                value={propRef} onChange={e => setPropRef(e.target.value)}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: C.textMuted, marginBottom: 6 }}>
+                <span>{totalItems} item{totalItems !== 1 ? 's' : ''} recorded</span>
+                <span style={{ color: C.purple, fontWeight: 500 }}>{roomsWithItems} of 12 rooms</span>
+              </div>
+              <div style={{ height: 4, background: '#e5e5e5', borderRadius: 2, marginBottom: 16 }}>
+                <div style={{ height: '100%', background: C.purple, borderRadius: 2, width: `${Math.round(roomsWithItems / 12 * 100)}%`, transition: 'width .3s' }} />
+              </div>
+              {ROOMS.map(room => {
+                const rItems = roomItems[room.id]
+                return (
+                  <div key={room.id} onClick={() => { setCurRoom(room.id); setScreen('room') }}
+                    style={{ background: C.bg, border: `0.5px solid ${rItems.length > 0 ? C.teal : C.border}`, borderRadius: 12, marginBottom: 10, overflow: 'hidden', cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px' }}>
+                      <span style={{ fontSize: 22 }}>{room.icon}</span>
+                      <span style={{ fontSize: 14, fontWeight: 500, flex: 1 }}>{room.name}</span>
+                      <span style={{ fontSize: 12, color: C.textMuted }}>{rItems.length} item{rItems.length !== 1 ? 's' : ''}</span>
+                      <span style={{ fontSize: 16, color: C.textHint }}>›</span>
+                    </div>
+                    {rItems.length > 0 && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 3, padding: '0 3px 3px' }}>
+                        {Array.from({ length: 4 }, (_, i) => {
+                          const it = rItems[i]
+                          if (it?.imgData) return <div key={i} style={{ aspectRatio: '1', borderRadius: 4, overflow: 'hidden' }}><img src={it.imgData} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
+                          if (it) return <div key={i} style={{ aspectRatio: '1', borderRadius: 4, background: C.purpleLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: C.purpleMid, fontWeight: 500 }}>{it.title.slice(0, 6)}</div>
+                          return <div key={i} style={{ aspectRatio: '1', borderRadius: 4, border: `0.5px dashed ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: C.textHint, background: C.bgSurface }}>+</div>
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+              <button style={btnPrimary} onClick={() => setScreen('review')}>Review &amp; Submit →</button>
+              <button style={btnSecondary} onClick={handleSave} disabled={saveStatus === 'saving'}>
+                {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? '✓ Saved' : saveStatus === 'error' ? 'Save failed — tap to retry' : 'Save'}
+              </button>
+            </div>
+          )}
+
+          {/* ── ROOM ── */}
+          {screen === 'room' && (
+            <>
+              <div style={{ padding: '12px 16px', borderBottom: `0.5px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button onClick={() => setScreen('home')} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: C.textMuted, padding: 4, lineHeight: 1 }}>←</button>
+                <span style={{ fontSize: 15, fontWeight: 600, flex: 1 }}>{ROOMS.find(r => r.id === curRoom)?.name}</span>
+                <button onClick={openAddItem} style={{ background: C.purple, color: '#fff', border: 'none', borderRadius: 20, padding: '7px 14px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>+ Add item</button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10, padding: 14 }}>
+                {roomItems[curRoom].map((item, idx) => (
+                  <div key={item.id} onClick={() => openEditItem(curRoom, idx)} style={{ borderRadius: 8, border: `0.5px solid ${C.border}`, overflow: 'hidden', cursor: 'pointer', background: C.bg }}>
+                    {item.imgData
+                      ? <img src={item.imgData} alt="" style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', display: 'block' }} />
+                      : <div style={{ width: '100%', aspectRatio: '4/3', background: C.bgSurface, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>{ROOMS.find(r => r.id === curRoom)?.icon}</div>
+                    }
+                    <div style={{ padding: 8 }}>
+                      <p style={{ fontSize: 12, fontWeight: 500, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title}</p>
+                      <p style={{ fontSize: 11, margin: '2px 0 0' }}>
+                        <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', marginRight: 4, background: item.status === 'include' ? C.teal : item.status === 'exclude' ? '#F09595' : '#EF9F27' }} />
+                        <span style={{ color: C.textMuted, textTransform: 'capitalize' }}>{item.status}</span>
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                <div onClick={openAddItem} style={{ borderRadius: 8, border: `1.5px dashed ${C.border}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 140, gap: 6, cursor: 'pointer' }}>
+                  <span style={{ fontSize: 24, color: C.textHint }}>+</span>
+                  <span style={{ fontSize: 12, color: C.textMuted }}>Add item</span>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ── REVIEW ── */}
+          {screen === 'review' && (
+            <>
+              <div style={{ padding: '12px 16px', borderBottom: `0.5px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button onClick={() => setScreen('home')} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: C.textMuted, padding: 4, lineHeight: 1 }}>←</button>
+                <span style={{ fontSize: 15, fontWeight: 600 }}>Review all items</span>
+              </div>
+              <div style={{ padding: 16 }}>
+                {submitErr && <div style={{ background: C.redLight, color: C.redDark, padding: 12, borderRadius: 8, fontSize: 13, marginBottom: 16 }}>{submitErr}</div>}
+                {ROOMS.filter(r => roomItems[r.id].length > 0).map(room => (
+                  <div key={room.id} style={{ marginBottom: 20 }}>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>{room.icon}</span>{room.name}
+                    </p>
+                    {roomItems[room.id].map((item, idx) => {
+                      const sc = STATUS_STYLE[item.status]
+                      return (
+                        <div key={item.id} onClick={() => openEditItem(room.id, idx)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, border: `0.5px solid ${C.border}`, borderRadius: 8, marginBottom: 6, background: C.bg, cursor: 'pointer' }}>
+                          {item.imgData
+                            ? <img src={item.imgData} alt="" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6, flexShrink: 0, border: `0.5px solid ${C.border}` }} />
+                            : <div style={{ width: 48, height: 48, borderRadius: 6, flexShrink: 0, background: C.bgSurface, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{room.icon}</div>
+                          }
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: 13, fontWeight: 500, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</p>
+                            <p style={{ fontSize: 11, color: C.textMuted, margin: '1px 0 0' }}>{item.brand || 'No brand'}{item.price ? ` · £${item.price}` : ''}</p>
+                          </div>
+                          <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 20, fontWeight: 500, textTransform: 'capitalize', flexShrink: 0, background: sc.bg, color: sc.color, border: `0.5px solid ${sc.border}` }}>{item.status}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ))}
+                {totalItems === 0 && <p style={{ color: C.textMuted, fontSize: 14, textAlign: 'center', padding: '32px 0' }}>No items added yet — go back and add items to rooms.</p>}
+                <button style={{ ...btnPrimary, opacity: totalItems === 0 ? 0.4 : 1 }} disabled={totalItems === 0} onClick={handleReviewAndSubmit}>Review and Submit</button>
+                <button style={btnSecondary} onClick={() => setScreen('home')}>← Back to rooms</button>
+              </div>
+            </>
+          )}
+
+          {/* ── SUBMITTING ── */}
+          {screen === 'submitting' && (
+            <div style={{ textAlign: 'center', padding: '80px 16px' }}>
+              <div style={{ width: 32, height: 32, border: `3px solid ${C.purpleLight}`, borderTopColor: C.purple, borderRadius: '50%', animation: 'spin .8s linear infinite', margin: '0 auto 16px' }} />
+              <p style={{ fontSize: 14, color: C.textMuted }}>Submitting form...</p>
+            </div>
+          )}
+
+          {/* ── DONE ── */}
+          {screen === 'done' && (
+            <div style={{ padding: '24px 16px', textAlign: 'center' }}>
+              <div style={{ fontSize: 52, marginBottom: 16 }}>✅</div>
+              <p style={{ fontSize: 20, fontWeight: 600, marginBottom: 6 }}>Form submitted</p>
+              <p style={{ fontSize: 14, color: C.textMuted }}>{totalItems} items across {roomsWithItems} room{roomsWithItems !== 1 ? 's' : ''}</p>
+              <div style={{ background: C.purpleLight, borderRadius: 8, padding: 14, margin: '16px 0', textAlign: 'left' }}>
+                <p style={{ fontSize: 11, fontWeight: 600, color: C.purpleMid, marginBottom: 4, textTransform: 'uppercase' }}>Buyer review link</p>
+                <p style={{ fontSize: 12, color: C.purpleMid, wordBreak: 'break-all', lineHeight: 1.5, margin: 0 }}>
+                  {typeof window !== 'undefined' ? `${window.location.origin}/buyer/${txId}` : ''}
+                </p>
+              </div>
+              <button style={btnPrimary} onClick={() => navigator.clipboard.writeText(`${window.location.origin}/buyer/${txId}`).catch(() => {})}>Copy buyer link</button>
+              <button style={btnSecondary} onClick={() => { setRoomItems(initRooms()); setScreen('home') }}>Start new form</button>
+            </div>
+          )}
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Form Complete</h1>
-        <p className="text-gray-600 mb-6">
-          Your Fixtures &amp; Fittings form has been submitted. A copy has been sent to your estate agent and solicitor.
-        </p>
-        <button
-          onClick={() => window.open(`/seller/${txId}/print`, '_blank')}
-          className="text-sm text-blue-600 hover:underline"
-        >
-          Print / save a copy of your submission
-        </button>
-        <button
-          type="button"
-          onClick={() => signOut({ callbackUrl: '/auth/signin' })}
-          className="mt-4 w-full border border-gray-300 text-gray-600 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
-        >
-          Exit
-        </button>
       </div>
-    </main>
+
+      {/* ── Exit Confirmation ── */}
+      {showExitDlg && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: C.bg, borderRadius: 12, padding: 24, maxWidth: 340, width: '100%' }}>
+            <p style={{ fontSize: 16, fontWeight: 600, margin: '0 0 8px' }}>Save before exiting?</p>
+            <p style={{ fontSize: 14, color: C.textMuted, margin: '0 0 20px', lineHeight: 1.5 }}>Your items will be lost if you exit without saving.</p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={async () => { setShowExitDlg(false); await handleSave(); signOut({ callbackUrl: '/auth/signin' }) }}
+                style={{ flex: 1, padding: 13, background: C.purple, color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                Yes, save
+              </button>
+              <button onClick={() => signOut({ callbackUrl: '/auth/signin' })}
+                style={{ flex: 1, padding: 13, border: `0.5px solid ${C.border}`, borderRadius: 8, background: C.bg, fontSize: 14, color: C.textMuted, cursor: 'pointer' }}>
+                No, exit
+              </button>
+            </div>
+            <button onClick={() => setShowExitDlg(false)}
+              style={{ width: '100%', marginTop: 8, padding: 10, border: 'none', background: 'none', fontSize: 13, color: C.textHint, cursor: 'pointer' }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Item Modal ── */}
+      {modalOpen && (
+        <div onClick={e => { if (e.target === e.currentTarget) setModalOpen(false) }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: C.bg, borderRadius: '12px 12px 0 0', width: '100%', maxWidth: 500, maxHeight: '92vh', overflowY: 'auto', paddingBottom: 24 }}>
+            <div style={{ width: 36, height: 4, background: C.border, borderRadius: 2, margin: '10px auto 6px' }} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 12px' }}>
+              <span style={{ fontSize: 15, fontWeight: 600 }}>{editIdx !== null ? 'Edit item' : 'Add item'}</span>
+              <button onClick={() => setModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: C.textMuted, padding: 4 }}>✕</button>
+            </div>
+            <div style={{ padding: '0 16px' }}>
+
+              {/* Photo zone */}
+              {modalMode === 'photo' && (
+                <div>
+                  <input type="file" ref={camRef}  accept="image/*" capture="environment" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) handlePhoto(f) }} />
+                  <input type="file" ref={gallRef} accept="image/*"                       style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) handlePhoto(f) }} />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 4 }}>
+                    <button onClick={() => camRef.current?.click()}  style={{ padding: '20px 8px', border: `1.5px dashed ${C.border}`, borderRadius: 8, background: C.bgSurface, cursor: 'pointer', fontSize: 13, color: C.textMuted }}>📷 Camera</button>
+                    <button onClick={() => gallRef.current?.click()} style={{ padding: '20px 8px', border: `1.5px dashed ${C.border}`, borderRadius: 8, background: C.bgSurface, cursor: 'pointer', fontSize: 13, color: C.textMuted }}>🖼️ Gallery</button>
+                  </div>
+                  <button onClick={skipPhoto} style={{ width: '100%', padding: 10, border: 'none', background: 'none', fontSize: 13, color: C.purpleMid, cursor: 'pointer' }}>Skip photo — enter details manually</button>
+                </div>
+              )}
+
+              {/* Analyzing */}
+              {modalMode === 'analyzing' && (
+                <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                  <div style={{ width: 32, height: 32, border: `3px solid ${C.purpleLight}`, borderTopColor: C.purple, borderRadius: '50%', animation: 'spin .8s linear infinite', margin: '0 auto 12px' }} />
+                  <p style={{ fontSize: 13, color: C.textMuted }}>Identifying item...</p>
+                </div>
+              )}
+
+              {/* Form fields */}
+              {modalMode === 'form' && (
+                <>
+                  {editItem.imgData && <img src={editItem.imgData} alt="" style={{ width: '100%', borderRadius: 8, maxHeight: 200, objectFit: 'cover', marginBottom: 12, border: `0.5px solid ${C.border}` }} />}
+                  {editItem.imgData && (
+                    <button onClick={() => { setEditItem(i => ({ ...i, imgData: null })); setModalMode('photo') }}
+                      style={{ width: '100%', padding: 11, border: `0.5px solid ${C.border}`, borderRadius: 8, background: C.bg, fontSize: 13, color: C.textMuted, cursor: 'pointer', marginBottom: 4 }}>↺ Retake photo</button>
+                  )}
+                  <label style={fieldLabel}>Item name *</label>
+                  <input style={fieldInput} type="text" placeholder="e.g. Integrated dishwasher" value={editItem.title} onChange={e => setEditItem(i => ({ ...i, title: e.target.value }))} />
+                  <label style={fieldLabel}>Brand / model</label>
+                  <input style={fieldInput} type="text" placeholder="e.g. Bosch Series 6" value={editItem.brand} onChange={e => setEditItem(i => ({ ...i, brand: e.target.value }))} />
+                  <label style={fieldLabel}>Est. value (£)</label>
+                  <input style={fieldInput} type="number" placeholder="e.g. 450" value={editItem.price ?? ''} onChange={e => setEditItem(i => ({ ...i, price: e.target.value ? Number(e.target.value) : null }))} />
+                  <label style={fieldLabel}>SDLT sensitivity</label>
+                  <select style={fieldInput} value={editItem.sdlt} onChange={e => setEditItem(i => ({ ...i, sdlt: e.target.value as Sdlt }))}>
+                    <option value="high">High — permanently fixed</option>
+                    <option value="medium">Medium — semi-permanent</option>
+                    <option value="low">Low — freestanding</option>
+                  </select>
+                  <label style={fieldLabel}>Notes</label>
+                  <input style={fieldInput} type="text" placeholder="Any additional details" value={editItem.notes} onChange={e => setEditItem(i => ({ ...i, notes: e.target.value }))} />
+                  <label style={fieldLabel}>Include in sale?</label>
+                  <div style={{ display: 'flex', gap: 6, marginTop: 3 }}>
+                    {(['include', 'exclude', 'negotiate'] as Status[]).map(st => {
+                      const sc = STATUS_STYLE[st]
+                      const active = editItem.status === st
+                      return (
+                        <button key={st} onClick={() => setEditItem(i => ({ ...i, status: st }))}
+                          style={{ flex: 1, padding: '9px 4px', border: `0.5px solid ${active ? sc.border : C.border}`, borderRadius: 20, background: active ? sc.bg : C.bg, fontSize: 12, fontWeight: 500, color: active ? sc.color : C.textMuted, cursor: 'pointer', textAlign: 'center' }}>
+                          {st === 'include' ? '✓ Include' : st === 'exclude' ? '✕ Exclude' : '⇄ Negotiate'}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {editItem.reasoning && <p style={{ fontSize: 11, color: C.textHint, marginTop: 8, fontStyle: 'italic', lineHeight: 1.5 }}>{editItem.reasoning}</p>}
+                </>
+              )}
+            </div>
+            {modalMode === 'form' && (
+              <div style={{ display: 'flex', gap: 8, padding: '14px 16px 0' }}>
+                {editIdx !== null && <button onClick={deleteItem} style={{ flex: 1, padding: 13, border: '0.5px solid #F09595', borderRadius: 8, background: C.bg, fontSize: 13, color: C.redDark, cursor: 'pointer' }}>🗑 Delete</button>}
+                <button onClick={saveItem} disabled={!editItem.title.trim()}
+                  style={{ flex: 2, padding: 13, background: editItem.title.trim() ? C.purple : '#ccc', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: editItem.title.trim() ? 'pointer' : 'default' }}>Save item</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   )
 }

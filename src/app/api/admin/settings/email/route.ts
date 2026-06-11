@@ -54,10 +54,14 @@ export const PUT = withRBAC('admin:all', async (req: NextRequest) => {
     updatedByUserId: (session?.user as any)?.id ?? null,
   }
 
-  if (existing) {
-    await prisma.systemSettings.update({ where: { id: existing.id }, data })
-  } else {
-    await prisma.systemSettings.create({ data })
+  try {
+    if (existing) {
+      await prisma.systemSettings.update({ where: { id: existing.id }, data })
+    } else {
+      await prisma.systemSettings.create({ data })
+    }
+  } catch (err: any) {
+    return NextResponse.json({ error: err?.message ?? 'Database error — settings not saved' }, { status: 500 })
   }
 
   return NextResponse.json({ success: true })

@@ -15,7 +15,6 @@ enum UserRole {
   BUYER
   CONVEYANCER
   AGENT
-  SURVEYOR
   BUYER_SOLICITOR
   ADMIN
   SYSTEM
@@ -222,6 +221,7 @@ model Transaction {
   buyerSolicitorPhone String?         @map("buyer_solicitor_phone") @db.VarChar(30)
   buyerSolicitorEmail String?         @map("buyer_solicitor_email") @db.VarChar(255)
   buyerContactAddress String?         @map("buyer_contact_address") @db.Text
+  ffaSubmissionId     String?         @map("ffa_submission_id") @db.VarChar(100)
   sellerSubmittedAt   DateTime?       @map("seller_submitted_at")
   buyerAcceptedAt   DateTime?       @map("buyer_accepted_at")
   exchangedAt       DateTime?       @map("exchanged_at")
@@ -245,7 +245,6 @@ model Transaction {
   buyerAcceptances BuyerAcceptance[]
   marketingInclusions MarketingInclusion[]
   documents      TransactionDocument[]
-  surveyorAccess SurveyorAccess[]
   auditLogs      AuditLog[]
 
   @@index([status])
@@ -272,6 +271,8 @@ model FixturesItem {
   riskFlagDismissReason String?   @map("risk_flag_dismiss_reason") @db.VarChar(500)
   estimatedValue        Decimal?  @map("estimated_value") @db.Decimal(10, 2)
   notes                 String?   @db.Text
+  make                  String?   @db.VarChar(100)
+  model                 String?   @db.VarChar(200)
   photoUrls             String[]  @map("photo_urls")
   sortOrder             Int       @default(0) @map("sort_order")
   deletedAt             DateTime? @map("deleted_at")
@@ -412,21 +413,6 @@ model TransactionDocument {
 
   @@index([transactionId])
   @@map("transaction_documents")
-}
-
-model SurveyorAccess {
-  id            String    @id @default(uuid()) @db.Uuid
-  transactionId String    @map("transaction_id") @db.Uuid
-  surveyorUserId String   @map("surveyor_user_id") @db.Uuid
-  grantedByUserId String  @map("granted_by_user_id") @db.Uuid
-  grantedAt     DateTime  @default(now()) @map("granted_at")
-  revokedAt     DateTime? @map("revoked_at")
-
-  transaction Transaction @relation(fields: [transactionId], references: [id])
-
-  @@index([transactionId])
-  @@index([surveyorUserId])
-  @@map("surveyor_access")
 }
 
 // v3 — added SystemSettings

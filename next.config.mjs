@@ -5,6 +5,10 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   typescript: { ignoreBuildErrors: true },
+  experimental: {
+    serverActions: { bodySizeLimit: '10mb' },
+    serverComponentsExternalPackages: ['pino', 'pino-pretty', 'thread-stream'],
+  },
 };
 
 export default nextConfig;

@@ -13,7 +13,7 @@ export default async function AdminNewPage({ searchParams }: { searchParams: { t
   const [firms, staffUsers] = await Promise.all([
     prisma.firm.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } }),
     prisma.user.findMany({
-      where: { deletedAt: null, role: { in: ['CONVEYANCER', 'AGENT', 'SURVEYOR', 'SELLER', 'BUYER', 'BUYER_SOLICITOR'] } },
+      where: { deletedAt: null, role: { in: ['CONVEYANCER', 'AGENT', 'SELLER', 'BUYER', 'BUYER_SOLICITOR'] } },
       select: { id: true, firstName: true, lastName: true, email: true, role: true },
       orderBy: [{ role: 'asc' }, { lastName: 'asc' }],
     }),

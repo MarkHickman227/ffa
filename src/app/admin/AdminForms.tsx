@@ -10,12 +10,11 @@ interface StaffUser { id: string; firstName: string; lastName: string; email: st
 const ROLES = [
   { value: 'SELLER', label: 'Seller' },
   { value: 'BUYER', label: 'Buyer' },
-  { value: 'CONVEYANCER', label: 'Conveyancer' },
+  { value: 'ADMIN', label: 'Admin' },
   { value: 'AGENT', label: 'Estate Agent' },
-  { value: 'SURVEYOR', label: 'Surveyor' },
   { value: 'BUYER_SOLICITOR', label: "Buyer's Solicitor" },
 ]
-const FIRM_ROLES = new Set(['CONVEYANCER', 'AGENT'])
+const FIRM_ROLES = new Set(['AGENT'])
 
 function byRole(users: StaffUser[], role: string) {
   return users.filter((u) => u.role === role)
@@ -168,8 +167,7 @@ function AddTransactionForm({ firms, staffUsers }: { firms: Firm[]; staffUsers: 
     addressLine1: '', addressLine2: '', city: '', postcode: '',
     sellerFirstName: '', sellerLastName: '', sellerEmail: '', sellerPhone: '',
     buyerFirstName: '', buyerLastName: '', buyerEmail: '', buyerPhone: '',
-    conveyancerFirmId: '',
-    agentUserId: '', surveyorUserId: '',
+    agentUserId: '',
     buyerSolicitorUserId: '',
   })
   const [submitting, setSubmitting] = useState(false)
@@ -201,8 +199,6 @@ function AddTransactionForm({ firms, staffUsers }: { firms: Firm[]; staffUsers: 
       if (form.sellerPhone) body.sellerPhone = form.sellerPhone
       if (form.buyerPhone) body.buyerPhone = form.buyerPhone
       if (form.agentUserId) body.agentUserId = form.agentUserId
-      if (form.surveyorUserId) body.surveyorUserId = form.surveyorUserId
-      if (form.conveyancerFirmId) body.conveyancerFirmId = form.conveyancerFirmId
       if (form.buyerSolicitorUserId) body.buyerSolicitorUserId = form.buyerSolicitorUserId
 
       const res = await fetch('/api/transactions', {
@@ -217,7 +213,7 @@ function AddTransactionForm({ firms, staffUsers }: { firms: Firm[]; staffUsers: 
           addressLine1: '', addressLine2: '', city: '', postcode: '',
           sellerFirstName: '', sellerLastName: '', sellerEmail: '', sellerPhone: '',
           buyerFirstName: '', buyerLastName: '', buyerEmail: '', buyerPhone: '',
-          conveyancerFirmId: '', agentUserId: '', surveyorUserId: '',
+          agentUserId: '',
           buyerSolicitorUserId: '',
         })
         router.refresh()
@@ -236,7 +232,6 @@ function AddTransactionForm({ firms, staffUsers }: { firms: Firm[]; staffUsers: 
   }
 
   const agents = byRole(staffUsers, 'AGENT')
-  const surveyors = byRole(staffUsers, 'SURVEYOR')
   const solicitors = byRole(staffUsers, 'BUYER_SOLICITOR')
 
   return (
@@ -309,15 +304,6 @@ function AddTransactionForm({ firms, staffUsers }: { firms: Firm[]; staffUsers: 
           />
 
           <StaffPicker
-            label="Surveyor"
-            required
-            value={form.surveyorUserId}
-            onChange={(v) => set('surveyorUserId', v)}
-            users={surveyors}
-            emptyHint="No surveyors exist yet — add one via Add Person first."
-          />
-
-          <StaffPicker
             label="Buyer's Solicitor"
             value={form.buyerSolicitorUserId}
             onChange={(v) => set('buyerSolicitorUserId', v)}
@@ -325,16 +311,6 @@ function AddTransactionForm({ firms, staffUsers }: { firms: Firm[]; staffUsers: 
             emptyHint="No buyer's solicitors exist yet — add one via Add Person first."
           />
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-              Conveyancer Firm <span className="text-gray-400 font-normal normal-case">(optional)</span>
-            </label>
-            <select value={form.conveyancerFirmId} onChange={(e) => set('conveyancerFirmId', e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">— Select firm —</option>
-              {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-            </select>
-          </div>
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}

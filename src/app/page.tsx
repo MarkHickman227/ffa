@@ -30,14 +30,6 @@ export default async function HomePage() {
     if (tx) redirect(`/buyer/${tx.id}`)
   }
 
-  if (role === 'SURVEYOR') {
-    const access = await prisma.surveyorAccess.findFirst({
-      where: { surveyorUserId: user.id, revokedAt: null },
-      orderBy: { grantedAt: 'desc' },
-    })
-    if (access) redirect(`/surveyor/${access.transactionId}`)
-  }
-
   if (role) {
     return (
       <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -65,7 +57,7 @@ export default async function HomePage() {
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Fixtures &amp; Fittings Assurance</h1>
         <p className="text-gray-600 mb-8">
-          The UK&apos;s digital TA10 platform for sellers, buyers, conveyancers, agents, and surveyors.
+          The UK&apos;s digital TA10 platform for sellers, buyers, conveyancers, and agents.
         </p>
         <Link
           href="/auth/signin"

@@ -15,7 +15,6 @@ interface TxData {
   conveyancerFirmId?: string | null
   conveyancerUserId?: string | null
   agentUserId?: string | null
-  surveyorUserId?: string | null
   agentContactName?: string | null
   agentPhone?: string | null
   agentEmail?: string | null
@@ -98,7 +97,6 @@ export function EditTransactionForm({ tx, firms, staffUsers, isLocked }: {
     conveyancerFirmId: tx.conveyancerFirmId ?? '',
     conveyancerUserId: tx.conveyancerUserId ?? '',
     agentUserId: tx.agentUserId ?? '',
-    surveyorUserId: tx.surveyorUserId ?? '',
     agentContactName: tx.agentContactName ?? '',
     agentPhone: tx.agentPhone ?? '',
     agentEmail: tx.agentEmail ?? '',
@@ -161,7 +159,6 @@ export function EditTransactionForm({ tx, firms, staffUsers, isLocked }: {
         conveyancerFirmId: form.conveyancerFirmId || null,
         conveyancerUserId: form.conveyancerUserId || null,
         agentUserId: form.agentUserId || null,
-        surveyorUserId: form.surveyorUserId || null,
         agentContactName: form.agentContactName || null,
         agentPhone: form.agentPhone || null,
         agentEmail: form.agentEmail || null,
@@ -183,7 +180,11 @@ export function EditTransactionForm({ tx, firms, staffUsers, isLocked }: {
         router.refresh()
       } else {
         const b = await res.json()
-        setError(b.error?.formErrors?.[0] ?? b.error ?? 'Save failed')
+        const errMsg = b.error?.formErrors?.[0]
+          ?? (typeof b.error === 'string' ? b.error : null)
+          ?? (b.error?.fieldErrors ? Object.values(b.error.fieldErrors as Record<string, string[]>).flat()[0] : null)
+          ?? 'Save failed'
+        setError(errMsg)
       }
     } finally {
       setSaving(false)
@@ -192,7 +193,6 @@ export function EditTransactionForm({ tx, firms, staffUsers, isLocked }: {
 
   const conveyancers = byRole(staffUsers, 'CONVEYANCER')
   const agents = byRole(staffUsers, 'AGENT')
-  const surveyors = byRole(staffUsers, 'SURVEYOR')
   const solicitors = byRole(staffUsers, 'BUYER_SOLICITOR')
 
   return (
@@ -262,14 +262,6 @@ export function EditTransactionForm({ tx, firms, staffUsers, isLocked }: {
           onChange={isLocked ? () => {} : onAgentChange}
           options={agents.map((u) => ({ value: u.id, label: `${u.firstName} ${u.lastName} (${u.email})` }))}
           empty="— Select agent —"
-          disabled={isLocked}
-        />
-        <Select
-          label="Surveyor"
-          value={form.surveyorUserId}
-          onChange={(v) => set('surveyorUserId', v)}
-          options={surveyors.map((u) => ({ value: u.id, label: `${u.firstName} ${u.lastName} (${u.email})` }))}
-          empty="— Select surveyor —"
           disabled={isLocked}
         />
         <Select

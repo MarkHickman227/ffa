@@ -72,7 +72,10 @@ export function EmailSettingsForm({ initial }: { initial: Settings }) {
         body: JSON.stringify(buildPayload()),
       })
       const data = await res.json()
-      setTestResult({ ok: res.ok, msg: res.ok ? data.message : (data.error ?? 'Test failed') })
+      const testMsg = res.ok
+        ? (data.message ?? 'Test succeeded')
+        : (typeof data.error === 'string' ? data.error : (data.error?.formErrors?.[0] ?? data.error?.fieldErrors ? Object.values(data.error.fieldErrors as Record<string, string[]>).flat()[0] : null) ?? 'Test failed')
+      setTestResult({ ok: res.ok, msg: testMsg })
     } catch (err: any) {
       setTestResult({ ok: false, msg: err.message ?? 'Network error' })
     } finally {

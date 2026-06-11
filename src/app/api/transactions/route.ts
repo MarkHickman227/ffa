@@ -8,10 +8,11 @@ import { getServerSession } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
-// Converts empty strings / null / undefined to undefined before UUID validation
+// Zod v4 uuid() is strict about version bits — use regex for DB-originated UUIDs
+const uuidRx = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i
 const optUUID = z.preprocess(
   (v) => (v == null || v === '' ? undefined : v),
-  z.string().uuid().optional()
+  z.string().regex(uuidRx).optional()
 )
 
 const CreateTransactionSchema = z.object({
@@ -31,7 +32,6 @@ const CreateTransactionSchema = z.object({
   conveyancerFirmId: optUUID,
   conveyancerUserId: optUUID,
   agentUserId: optUUID,
-  surveyorUserId: optUUID,
   buyerSolicitorUserId: optUUID,
 })
 
@@ -42,7 +42,7 @@ export const POST = withRBAC('transaction:create', async (req: NextRequest) => {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
 
   const user = session!.user as any
-  const { conveyancerUserId, agentUserId, surveyorUserId, buyerSolicitorUserId } = parsed.data
+  const { conveyancerUserId, agentUserId, buyerSolicitorUserId } = parsed.data
 
   if (conveyancerUserId) {
     const u = await prisma.user.findUnique({ where: { id: conveyancerUserId }, select: { role: true } })
@@ -54,13 +54,6 @@ export const POST = withRBAC('transaction:create', async (req: NextRequest) => {
   if (agentUserId) {
     agentUser = await prisma.user.findUnique({ where: { id: agentUserId }, select: { role: true, firstName: true, lastName: true, email: true, phone: true } })
     if (!agentUser || agentUser.role !== 'AGENT') return NextResponse.json({ error: 'Invalid agent' }, { status: 422 })
-  }
-
-  // Fetch surveyor user with contact details for email notification
-  let surveyorUser: { role: string; firstName: string; lastName: string; email: string } | null = null
-  if (surveyorUserId) {
-    surveyorUser = await prisma.user.findUnique({ where: { id: surveyorUserId }, select: { role: true, firstName: true, lastName: true, email: true } })
-    if (!surveyorUser || surveyorUser.role !== 'SURVEYOR') return NextResponse.json({ error: 'Invalid surveyor' }, { status: 422 })
   }
 
   // Fetch buyer solicitor user with contact details for auto-population
@@ -124,12 +117,6 @@ export const POST = withRBAC('transaction:create', async (req: NextRequest) => {
     },
   })
 
-  if (surveyorUserId) {
-    prisma.surveyorAccess.create({
-      data: { transactionId: tx.id, surveyorUserId, grantedByUserId: user.id ?? seller.id },
-    }).catch(() => {})
-  }
-
   const address = `${property.addressLine1}, ${property.city} ${property.postcode}`
   const sellerUrl = `${process.env.NEXTAUTH_URL}/seller/${tx.id}`
 
@@ -147,12 +134,6 @@ export const POST = withRBAC('transaction:create', async (req: NextRequest) => {
       event: 'TRANSACTION_ASSIGNED_AGENT',
       data: { agentName: `${agentUser.firstName} ${agentUser.lastName}`, address, reference },
     })] : []),
-    // Surveyor notification
-    ...(surveyorUser ? [sendEmail({
-      to: surveyorUser.email,
-      event: 'TRANSACTION_ASSIGNED_SURVEYOR',
-      data: { surveyorName: `${surveyorUser.firstName} ${surveyorUser.lastName}`, address, reference },
-    })] : []),
     // Buyer's solicitor notification
     ...(solicitorUser ? [sendEmail({
       to: solicitorUser.email,
@@ -165,7 +146,7 @@ export const POST = withRBAC('transaction:create', async (req: NextRequest) => {
     eventType: 'TRANSACTION_CREATED',
     transactionId: tx.id,
     userId: user.id,
-    eventData: { reference, sellerEmail, buyerEmail, conveyancerUserId, agentUserId, surveyorUserId, buyerSolicitorUserId },
+    eventData: { reference, sellerEmail, buyerEmail, conveyancerUserId, agentUserId, buyerSolicitorUserId },
   }).catch(() => {})
 
   return NextResponse.json({ ...tx, reference, sellerId: seller.id }, { status: 201 })

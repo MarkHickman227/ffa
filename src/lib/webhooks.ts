@@ -12,7 +12,6 @@ export type WebhookEvent =
   | 'RISK_FLAG_DISMISSED'
   | 'PDF_EXPORT_COMPLETE'
   | 'RECONCILIATION_CONFLICT'
-  | 'SURVEYOR_ACCESS_GRANTED'
   | 'EXCHANGE_COMPLETE'
 
 let _connection: IORedis | null = null

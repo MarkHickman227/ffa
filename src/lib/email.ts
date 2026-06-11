@@ -57,7 +57,6 @@ export type EmailEvent =
   | 'SELLER_REMINDER_7D'
   | 'SELLER_REMINDER_14D'
   | 'TRANSACTION_ASSIGNED_AGENT'
-  | 'TRANSACTION_ASSIGNED_SURVEYOR'
   | 'TRANSACTION_ASSIGNED_SOLICITOR'
 
 interface EmailParams {
@@ -88,7 +87,6 @@ const SUBJECTS: Record<EmailEvent, string> = {
   SELLER_REMINDER_7D: 'Reminder: Please complete your Fixtures & Fittings form',
   SELLER_REMINDER_14D: 'Final reminder: Fixtures & Fittings form outstanding',
   TRANSACTION_ASSIGNED_AGENT: '[FFA] You have been assigned as Estate Agent on a transaction',
-  TRANSACTION_ASSIGNED_SURVEYOR: '[FFA] You have been assigned as Surveyor on a transaction',
   TRANSACTION_ASSIGNED_SOLICITOR: '[FFA] You have been associated with a new property transaction',
 }
 
@@ -160,9 +158,6 @@ function buildHtml(event: EmailEvent, data: Record<string, string>): string {
     TRANSACTION_ASSIGNED_AGENT: `<p>Dear ${data.agentName},</p>
       <p>You have been assigned as the Estate Agent on a new Fixtures &amp; Fittings transaction for <strong>${data.address}</strong> (ref: ${data.reference}).</p>
       <p>The seller has been invited to complete the TA10 Fixtures &amp; Fittings form. You will be notified of updates as the transaction progresses.</p>`,
-    TRANSACTION_ASSIGNED_SURVEYOR: `<p>Dear ${data.surveyorName},</p>
-      <p>You have been assigned as the Surveyor on a new Fixtures &amp; Fittings transaction for <strong>${data.address}</strong> (ref: ${data.reference}).</p>
-      <p>The seller has been invited to complete the TA10 Fixtures &amp; Fittings form. You will receive access details as the transaction progresses.</p>`,
     TRANSACTION_ASSIGNED_SOLICITOR: `<p>Dear ${data.solicitorName},</p>
       <p>You have been associated with a new property transaction for <strong>${data.address}</strong> (ref: ${data.reference}) as the buyer's solicitor.</p>
       <p>The seller has been invited to complete the TA10 Fixtures &amp; Fittings form. You will receive further notifications as the transaction progresses.</p>`,
@@ -179,6 +174,7 @@ export async function sendEmail(params: EmailParams): Promise<void> {
     port: cfg.port,
     secure: cfg.port === 465,
     auth: cfg.user ? { user: cfg.user, pass: cfg.pass } : undefined,
+    tls: { rejectUnauthorized: false },
   })
   try {
     await transporter.sendMail({

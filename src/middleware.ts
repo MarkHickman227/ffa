@@ -23,9 +23,6 @@ export default withAuth(
     if (pathname.startsWith('/agent') && role !== 'AGENT' && role !== 'ADMIN') {
       return NextResponse.redirect(new URL('/auth/unauthorized', req.url))
     }
-    if (pathname.startsWith('/surveyor') && role !== 'SURVEYOR' && role !== 'ADMIN') {
-      return NextResponse.redirect(new URL('/auth/unauthorized', req.url))
-    }
     if (pathname.startsWith('/admin') && role !== 'ADMIN') {
       return NextResponse.redirect(new URL('/auth/unauthorized', req.url))
     }
@@ -49,8 +46,6 @@ export const config = {
     '/conveyancer/:path*',
     '/agent',
     '/agent/:path*',
-    '/surveyor',
-    '/surveyor/:path*',
     '/admin',
     '/admin/:path*',
     '/api/transactions/:path*',

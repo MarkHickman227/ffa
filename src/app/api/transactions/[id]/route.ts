@@ -8,10 +8,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from '@/lib/auth'
 import { z } from 'zod'
 
-// Normalises empty strings / null to null for nullable UUID FK fields
+// Zod v4 uuid() rejects non-standard version bits — use regex to accept all valid UUID shapes
+const uuidRx = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i
 const nullableUUID = z.preprocess(
   (v) => (v == null || v === '' ? null : v),
-  z.string().uuid().nullable().optional()
+  z.string().regex(uuidRx).nullable().optional()
 )
 
 const PatchTransactionSchema = z.object({
@@ -22,7 +23,6 @@ const PatchTransactionSchema = z.object({
   conveyancerFirmId:    nullableUUID,
   conveyancerUserId:    nullableUUID,
   agentUserId:          nullableUUID,
-  surveyorUserId:       nullableUUID,
   jobNumber:            z.string().max(100).nullable().optional(),
   contractId:           z.string().max(100).nullable().optional(),
   agentContactName:     z.string().max(200).nullable().optional(),
@@ -68,7 +68,7 @@ export const PATCH = withRBAC('conveyancer:manage', async (req: NextRequest, { p
   })
   if (!tx) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const { addressLine1, addressLine2, city, postcode, surveyorUserId: newSurveyorId, ...txFields } = parsed.data
+  const { addressLine1, addressLine2, city, postcode, ...txFields } = parsed.data
 
   // Validate staff role assignments if provided
   if (txFields.conveyancerUserId) {
@@ -79,11 +79,6 @@ export const PATCH = withRBAC('conveyancer:manage', async (req: NextRequest, { p
     const u = await prisma.user.findUnique({ where: { id: txFields.agentUserId }, select: { role: true } })
     if (!u || u.role !== 'AGENT') return NextResponse.json({ error: 'Invalid agent' }, { status: 422 })
   }
-  if (newSurveyorId) {
-    const u = await prisma.user.findUnique({ where: { id: newSurveyorId }, select: { role: true } })
-    if (!u || u.role !== 'SURVEYOR') return NextResponse.json({ error: 'Invalid surveyor' }, { status: 422 })
-  }
-
   await prisma.$transaction(async (db) => {
     // Update property address if any address field was supplied
     if (addressLine1 !== undefined || addressLine2 !== undefined || city !== undefined || postcode !== undefined) {
@@ -104,22 +99,6 @@ export const PATCH = withRBAC('conveyancer:manage', async (req: NextRequest, { p
     }
     if (Object.keys(updateData).length > 0) {
       await db.transaction.update({ where: { id: params.id }, data: updateData })
-    }
-    // Reassign surveyor access when surveyorUserId was explicitly provided
-    if (newSurveyorId !== undefined) {
-      await db.surveyorAccess.updateMany({
-        where: { transactionId: params.id, revokedAt: null },
-        data: { revokedAt: new Date() },
-      })
-      if (newSurveyorId) {
-        await db.surveyorAccess.create({
-          data: {
-            transactionId: params.id,
-            surveyorUserId: newSurveyorId,
-            grantedByUserId: (session?.user as any)?.id,
-          },
-        })
-      }
     }
   })
 

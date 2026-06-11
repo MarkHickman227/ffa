@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { prisma } from '@/lib/prisma'
 import { withRBAC } from '@/lib/rbac'
 import { decrypt } from '@/lib/encrypt'
+import { getServerSession } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import nodemailer from 'nodemailer'
@@ -10,7 +11,7 @@ import nodemailer from 'nodemailer'
 const TestSchema = z.object({
   smtpHost:         z.string().min(1).default('smtp.gmail.com'),
   smtpPort:         z.coerce.number().int().min(1).max(65535).default(587),
-  smtpUser:         z.string().email(),
+  smtpUser:         z.string().min(1),
   smtpPass:         z.string().min(1),
   emailFromName:    z.string().optional(),
   emailFromAddress: z.string().email().optional().or(z.literal('')),
@@ -43,13 +44,18 @@ export const POST = withRBAC('admin:all', async (req: NextRequest) => {
     port: smtpPort,
     secure: smtpPort === 465,
     auth: { user: smtpUser, pass: smtpPass },
+    tls: { rejectUnauthorized: false },
   })
 
   try {
     await transporter.verify()
+    const session = await getServerSession()
+    const adminEmail = (session?.user as any)?.email ?? emailFromAddress
+    const testTo = adminEmail || emailFromAddress
+    if (!testTo) return NextResponse.json({ error: 'No recipient address available — set a From Email Address first.' }, { status: 422 })
     await transporter.sendMail({
       from,
-      to: smtpUser,
+      to: testTo,
       subject: '[FFA] Test email — SMTP connection successful',
       html: `
         <div style="font-family:Arial,sans-serif;max-width:500px">
@@ -62,7 +68,7 @@ export const POST = withRBAC('admin:all', async (req: NextRequest) => {
           </ul>
         </div>`,
     })
-    return NextResponse.json({ success: true, message: `Test email sent to ${smtpUser} — check your inbox.` })
+    return NextResponse.json({ success: true, message: `Test email sent to ${testTo} — check your inbox.` })
   } catch (err: any) {
     // Surface the nodemailer error message clearly
     const msg = err?.message ?? 'SMTP connection failed'

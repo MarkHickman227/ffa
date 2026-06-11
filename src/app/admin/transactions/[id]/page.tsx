@@ -22,17 +22,11 @@ export default async function EditTransactionPage({ params }: { params: { id: st
         conveyancerUser: { select: { id: true, firstName: true, lastName: true } },
         agentUser: { select: { id: true, firstName: true, lastName: true } },
         conveyancerFirm: { select: { id: true, name: true } },
-        surveyorAccess: {
-          where: { revokedAt: null },
-          orderBy: { grantedAt: 'desc' },
-          take: 1,
-          select: { surveyorUserId: true },
-        },
       },
     }),
     prisma.firm.findMany({ orderBy: { name: 'asc' } }),
     prisma.user.findMany({
-      where: { role: { in: ['CONVEYANCER', 'AGENT', 'SURVEYOR', 'BUYER_SOLICITOR'] }, deletedAt: null },
+      where: { role: { in: ['CONVEYANCER', 'AGENT', 'BUYER_SOLICITOR'] }, deletedAt: null },
       select: { id: true, firstName: true, lastName: true, email: true, phone: true, role: true },
       orderBy: { firstName: 'asc' },
     }),
@@ -69,7 +63,6 @@ export default async function EditTransactionPage({ params }: { params: { id: st
             ...tx,
             valuationDate: tx.valuationDate?.toISOString() ?? null,
             scheduledExchangeDate: tx.scheduledExchangeDate?.toISOString() ?? null,
-            surveyorUserId: tx.surveyorAccess[0]?.surveyorUserId ?? null,
           }}
           firms={firms}
           staffUsers={staffUsers}

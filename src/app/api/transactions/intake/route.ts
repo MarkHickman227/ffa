@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { prisma } from '@/lib/prisma'
 import { withRBAC } from '@/lib/rbac'
 import { writeAuditLog } from '@/lib/audit'
+import { sendEmail } from '@/lib/email'
 import { getServerSession } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -135,6 +136,19 @@ export const POST = withRBAC('transaction:create', async (req: NextRequest) => {
     userId: session!.user.id,
     eventData: { reference, jobNumber: d.jobNumber, sellerEmail: d.sellerEmail },
   })
+
+  const address = [d.addressLine1, d.city, d.postcode.toUpperCase()].filter(Boolean).join(', ')
+  const appUrl = process.env.NEXTAUTH_URL ?? 'http://localhost:3001'
+  sendEmail({
+    to: seller.email,
+    event: 'SELLER_FORM_INVITE',
+    data: {
+      sellerName: `${seller.firstName} ${seller.lastName}`,
+      address,
+      reference,
+      url: `${appUrl}/seller/${tx.id}`,
+    },
+  }).catch(() => {})
 
   return NextResponse.json(tx, { status: 201 })
 })

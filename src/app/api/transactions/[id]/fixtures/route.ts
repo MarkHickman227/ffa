@@ -19,6 +19,8 @@ const CreateItemSchema = z.object({
   salePrice: z.number().nonnegative().nullable().optional(),
   estimatedValue: z.number().nonnegative().optional(),
   notes: z.string().max(5000).optional(),
+  make: z.string().max(100).nullable().optional(),
+  model: z.string().max(200).nullable().optional(),
   photoUrls: z.array(z.string()).max(10).default([]),
   sortOrder: z.number().int().default(0),
 })

@@ -21,11 +21,8 @@ export type Action =
   | 'conveyancer:manage'
   | 'conveyancer:dismiss_risk'
   | 'conveyancer:export_pdf'
-  | 'surveyor_access:grant'
-  | 'surveyor_access:revoke'
   | 'agent:read'
   | 'agent:reconcile'
-  | 'surveyor:read'
   | 'audit_log:read'
   | 'gdpr:sar'
   | 'gdpr:erasure'
@@ -55,8 +52,6 @@ const ROLE_PERMISSIONS: Record<UserRole, Action[]> = {
     'conveyancer:manage',
     'conveyancer:dismiss_risk',
     'conveyancer:export_pdf',
-    'surveyor_access:grant',
-    'surveyor_access:revoke',
     'enquiry:answer',
     'enquiry:close',
   ],
@@ -67,12 +62,6 @@ const ROLE_PERMISSIONS: Record<UserRole, Action[]> = {
     'agent:reconcile',
     'enquiry:answer',
   ],
-  [UserRole.SURVEYOR]: [
-    'transaction:read',
-    'seller_form:read',
-    'surveyor:read',
-    'enquiry:raise',
-  ],
   [UserRole.ADMIN]: [
     'transaction:read',
     'transaction:create',
@@ -82,15 +71,21 @@ const ROLE_PERMISSIONS: Record<UserRole, Action[]> = {
     'conveyancer:manage',
     'conveyancer:dismiss_risk',
     'conveyancer:export_pdf',
-    'surveyor_access:grant',
-    'surveyor_access:revoke',
     'agent:read',
     'agent:reconcile',
-    'surveyor:read',
     'audit_log:read',
     'gdpr:sar',
     'gdpr:erasure',
     'admin:all',
+  ],
+  [UserRole.BUYER_SOLICITOR]: [
+    'transaction:read',
+    'seller_form:read',
+    'buyer_form:read',
+    'conveyancer:read',
+    'enquiry:raise',
+    'enquiry:answer',
+    'enquiry:close',
   ],
   [UserRole.SYSTEM]: ['admin:all'],
 }
@@ -125,10 +120,6 @@ export async function checkPermission(
       sellerId: true,
       buyerId: true,
       conveyancerFirmId: true,
-      surveyorAccess: {
-        where: { surveyorUserId: user.id, revokedAt: null },
-        select: { id: true },
-      },
     },
   })
   if (!tx) return false
@@ -141,9 +132,7 @@ export async function checkPermission(
     case UserRole.CONVEYANCER:
       return tx.conveyancerFirmId === user.firmId
     case UserRole.AGENT:
-      return true // no agent-firm link on Transaction; list page already shows all
-    case UserRole.SURVEYOR:
-      return tx.surveyorAccess.length > 0
+      return true
     default:
       return false
   }

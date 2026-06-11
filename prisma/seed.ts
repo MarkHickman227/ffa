@@ -80,19 +80,6 @@ async function main() {
     },
   })
 
-  const surveyor1 = await prisma.user.upsert({
-    where: { email: 'eve.surveyor@test.ffa' },
-    update: { passwordHash },
-    create: {
-      id: '00000000-0000-0000-0000-000000000014',
-      email: 'eve.surveyor@test.ffa',
-      role: UserRole.SURVEYOR,
-      firstName: 'Eve',
-      lastName: 'Martin',
-      passwordHash,
-    },
-  })
-
   const seller2 = await prisma.user.upsert({
     where: { email: 'frank.seller@test.ffa' },
     update: { passwordHash },
@@ -312,17 +299,6 @@ async function main() {
     },
   })
 
-  // Surveyor access
-  await prisma.surveyorAccess.upsert({
-    where: { id: '00000000-0000-0000-0008-000000000001' },
-    update: {},
-    create: {
-      id: '00000000-0000-0000-0008-000000000001',
-      transactionId: tx1.id,
-      surveyorUserId: surveyor1.id,
-      grantedByUserId: conveyancer1.id,
-    },
-  })
 
   // ── Transaction 2: Draft (seller still completing form) ───────────────────
   const tx2 = await prisma.transaction.upsert({
