@@ -125,6 +125,15 @@ export const authOptions: AuthOptions = {
   ],
 
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith('/')) return `${baseUrl}${url}`
+      try {
+        const u = new URL(url)
+        const b = new URL(baseUrl)
+        if (u.hostname === b.hostname && u.port === b.port) return url
+      } catch {}
+      return `${baseUrl}/admin`
+    },
     async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id
