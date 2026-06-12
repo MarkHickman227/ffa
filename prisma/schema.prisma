@@ -135,6 +135,7 @@ model Firm {
 
   users        User[]
   transactions Transaction[]
+  mailboxes    Mailbox[]
 
   @@map("firms")
 }
@@ -165,6 +166,7 @@ model User {
   magicLinks              MagicLink[]
   accounts                Account[]
   sessions                Session[]
+  mailboxMemberships      MailboxMember[]
 
   @@index([email])
   @@index([firmId])
@@ -429,6 +431,199 @@ model SystemSettings {
   updatedAt           DateTime @updatedAt @map("updated_at")
 
   @@map("system_settings")
+}
+
+// ─── Email Module ─────────────────────────────────────────────────────────────
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum OutboundStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+}
+
+model Mailbox {
+  id          String   @id @default(uuid()) @db.Uuid
+  firmId      String   @map("firm_id") @db.Uuid
+  displayName String   @map("display_name") @db.VarChar(255)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  firm          Firm               @relation(fields: [firmId], references: [id])
+  credential    MailboxCredential?
+  members       MailboxMember[]
+  syncStates    MailboxSyncState[]
+  threads       EmailThread[]
+  messages      EmailMessage[]
+  outboundQueue OutboundQueue[]
+
+  @@index([firmId])
+  @@map("mailboxes")
+}
+
+model MailboxCredential {
+  id                String   @id @default(uuid()) @db.Uuid
+  mailboxId         String   @unique @map("mailbox_id") @db.Uuid
+  fromName          String   @map("from_name") @db.VarChar(255)
+  fromAddress       String   @map("from_address") @db.VarChar(255)
+  smtpHost          String   @map("smtp_host") @db.VarChar(255)
+  smtpPort          Int      @map("smtp_port")
+  smtpUser          String   @map("smtp_user") @db.VarChar(255)
+  smtpPassEncrypted String   @map("smtp_pass_encrypted") @db.Text
+  imapHost          String   @map("imap_host") @db.VarChar(255)
+  imapPort          Int      @map("imap_port")
+  imapUser          String   @map("imap_user") @db.VarChar(255)
+  imapPassEncrypted String   @map("imap_pass_encrypted") @db.Text
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  mailbox Mailbox @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+
+  @@map("mailbox_credentials")
+}
+
+model MailboxMember {
+  id        String   @id @default(uuid()) @db.Uuid
+  mailboxId String   @map("mailbox_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  canSend   Boolean  @default(false) @map("can_send")
+  addedAt   DateTime @default(now()) @map("added_at")
+
+  mailbox Mailbox @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([mailboxId, userId])
+  @@index([mailboxId])
+  @@index([userId])
+  @@map("mailbox_members")
+}
+
+model EmailThread {
+  id             String    @id @default(uuid()) @db.Uuid
+  mailboxId      String    @map("mailbox_id") @db.Uuid
+  subject        String    @db.VarChar(500)
+  messageCount   Int       @default(0) @map("message_count")
+  hasAttachments Boolean   @default(false) @map("has_attachments")
+  lastMessageAt  DateTime? @map("last_message_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  mailbox  Mailbox        @relation(fields: [mailboxId], references: [id])
+  messages EmailMessage[]
+
+  @@index([mailboxId])
+  @@index([lastMessageAt])
+  @@map("email_threads")
+}
+
+model EmailMessage {
+  id           String           @id @default(uuid()) @db.Uuid
+  threadId     String           @map("thread_id") @db.Uuid
+  mailboxId    String           @map("mailbox_id") @db.Uuid
+  messageId    String?          @map("message_id") @db.VarChar(500)
+  imapUid      Int?             @map("imap_uid")
+  imapFolder   String?          @map("imap_folder") @db.VarChar(255)
+  inReplyTo    String?          @map("in_reply_to") @db.VarChar(500)
+  direction    MessageDirection
+  fromAddress  String           @map("from_address") @db.VarChar(255)
+  fromName     String?          @map("from_name") @db.VarChar(255)
+  toAddresses  String[]         @map("to_addresses")
+  ccAddresses  String[]         @map("cc_addresses")
+  subject      String           @db.VarChar(500)
+  bodyText     String?          @map("body_text") @db.Text
+  bodyHtml     String?          @map("body_html") @db.Text
+  bodyHtmlSafe String?          @map("body_html_safe") @db.Text
+  isRead       Boolean          @default(false) @map("is_read")
+  isStarred    Boolean          @default(false) @map("is_starred")
+  receivedAt   DateTime         @map("received_at")
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  thread      EmailThread       @relation(fields: [threadId], references: [id])
+  mailbox     Mailbox           @relation(fields: [mailboxId], references: [id])
+  attachments EmailAttachment[]
+
+  @@unique([mailboxId, messageId])
+  @@index([threadId])
+  @@index([mailboxId])
+  @@index([receivedAt])
+  @@map("email_messages")
+}
+
+model EmailAttachment {
+  id        String   @id @default(uuid()) @db.Uuid
+  messageId String   @map("message_id") @db.Uuid
+  filename  String   @db.VarChar(500)
+  mimeType  String   @map("mime_type") @db.VarChar(200)
+  size      Int
+  s3Key     String   @map("s3_key") @db.VarChar(500)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  message EmailMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@map("email_attachments")
+}
+
+model MailboxSyncState {
+  id          String    @id @default(uuid()) @db.Uuid
+  mailboxId   String    @map("mailbox_id") @db.Uuid
+  folder      String    @db.VarChar(255)
+  uidValidity Int?      @map("uid_validity")
+  lastUid     Int?      @map("last_uid")
+  syncedAt    DateTime? @map("synced_at")
+
+  mailbox Mailbox @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+
+  @@unique([mailboxId, folder])
+  @@index([mailboxId])
+  @@map("mailbox_sync_states")
+}
+
+model OutboundQueue {
+  id          String         @id @default(uuid()) @db.Uuid
+  mailboxId   String         @map("mailbox_id") @db.Uuid
+  threadId    String?        @map("thread_id") @db.Uuid
+  inReplyTo   String?        @map("in_reply_to") @db.VarChar(500)
+  fromAddress String         @map("from_address") @db.VarChar(255)
+  fromName    String?        @map("from_name") @db.VarChar(255)
+  toAddresses String[]       @map("to_addresses")
+  ccAddresses String[]       @map("cc_addresses")
+  subject     String         @db.VarChar(500)
+  bodyText    String?        @map("body_text") @db.Text
+  bodyHtml    String?        @map("body_html") @db.Text
+  status      OutboundStatus @default(PENDING)
+  retries     Int            @default(0)
+  lastError   String?        @map("last_error") @db.Text
+  scheduledAt DateTime?      @map("scheduled_at")
+  sentAt      DateTime?      @map("sent_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  mailbox Mailbox @relation(fields: [mailboxId], references: [id])
+
+  @@index([mailboxId])
+  @@index([status])
+  @@map("outbound_queue")
+}
+
+model EmailAuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  mailboxId String?  @map("mailbox_id") @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  eventType String   @map("event_type") @db.VarChar(100)
+  eventData Json     @map("event_data")
+  ipAddress String?  @map("ip_address") @db.VarChar(45)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([mailboxId])
+  @@index([userId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("email_audit_logs")
 }
 
 // Write-only — no UPDATE, no DELETE

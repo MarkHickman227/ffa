@@ -61,6 +61,12 @@ export default async function ConveyancerHomePage() {
           </div>
           <div className="flex items-center gap-3">
             <Link
+              href="/email"
+              className="border border-blue-900 text-blue-900 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-50 transition"
+            >
+              Email
+            </Link>
+            <Link
               href="/conveyancer/new"
               className="bg-blue-900 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-800 transition"
             >

@@ -1,0 +1,623 @@
+
+> ffa@0.1.0 dev
+> next dev --port 3001
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3001
+  - Environments: .env.local, .env
+
+ ✓ Starting...
+ ✓ Ready in 12.7s
+ ○ Compiling /auth/signin ...
+ ✓ Compiled /auth/signin in 17.6s (641 modules)
+ GET /auth/signin 200 in 19409ms
+ ○ Compiling / ...
+ ✓ Compiled / in 9.3s (1156 modules)
+prisma:error 
+Invalid `prisma.transaction.findFirst()` invocation:
+
+
+Can't reach database server at `localhost:5433`
+
+Please make sure your database server is running at `localhost:5433`.
+ ⨯ PrismaClientInitializationError: 
+Invalid `prisma.transaction.findFirst()` invocation:
+
+
+Can't reach database server at `localhost:5433`
+
+Please make sure your database server is running at `localhost:5433`.
+    at async HomePage (./src/app/page.tsx:26:20)
+digest: "1176305851"
+ ⨯ PrismaClientInitializationError: 
+Invalid `prisma.transaction.findFirst()` invocation:
+
+
+Can't reach database server at `localhost:5433`
+
+Please make sure your database server is running at `localhost:5433`.
+    at async HomePage (./src/app/page.tsx:26:20)
+digest: "1176305851"
+ GET / 500 in 16023ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 884ms (881 modules)
+ GET /favicon.ico 200 in 1325ms
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 671ms (883 modules)
+ GET /api/auth/session 200 in 3700ms
+ GET /api/auth/session 200 in 189ms
+prisma:error 
+Invalid `prisma.transaction.findFirst()` invocation:
+
+
+Can't reach database server at `localhost:5433`
+
+Please make sure your database server is running at `localhost:5433`.
+ ⨯ PrismaClientInitializationError: 
+Invalid `prisma.transaction.findFirst()` invocation:
+
+
+Can't reach database server at `localhost:5433`
+
+Please make sure your database server is running at `localhost:5433`.
+    at async HomePage (./src/app/page.tsx:26:20)
+digest: "1176305851"
+ ⨯ PrismaClientInitializationError: 
+Invalid `prisma.transaction.findFirst()` invocation:
+
+
+Can't reach database server at `localhost:5433`
+
+Please make sure your database server is running at `localhost:5433`.
+    at async HomePage (./src/app/page.tsx:26:20)
+digest: "1176305851"
+ GET / 500 in 4933ms
+ GET /api/auth/providers 200 in 207ms
+ GET /api/auth/csrf 200 in 163ms
+prisma:query SELECT "public"."users"."id", "public"."users"."email", "public"."users"."role"::text, "public"."users"."first_name", "public"."users"."last_name", "public"."users"."phone", "public"."users"."password_hash", "public"."users"."totp_secret", "public"."users"."totp_enabled", "public"."users"."failed_logins", "public"."users"."locked_until", "public"."users"."firm_id", "public"."users"."deleted_at", "public"."users"."created_at", "public"."users"."updated_at" FROM "public"."users" WHERE ("public"."users"."email" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query UPDATE "public"."users" SET "failed_logins" = $1, "locked_until" = $2, "updated_at" = $3 WHERE ("public"."users"."id" = $4 AND 1=1) RETURNING "public"."users"."id", "public"."users"."email", "public"."users"."role"::text, "public"."users"."first_name", "public"."users"."last_name", "public"."users"."phone", "public"."users"."password_hash", "public"."users"."totp_secret", "public"."users"."totp_enabled", "public"."users"."failed_logins", "public"."users"."locked_until", "public"."users"."firm_id", "public"."users"."deleted_at", "public"."users"."created_at", "public"."users"."updated_at"
+prisma:query INSERT INTO "public"."audit_logs" ("id","transaction_id","user_id","event_type","event_data","ip_address","user_agent","created_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING "public"."audit_logs"."id", "public"."audit_logs"."transaction_id", "public"."audit_logs"."user_id", "public"."audit_logs"."event_type", "public"."audit_logs"."event_data", "public"."audit_logs"."ip_address", "public"."audit_logs"."user_agent", "public"."audit_logs"."created_at"
+ POST /api/auth/callback/credentials 200 in 1460ms
+ GET /api/auth/session 200 in 132ms
+ GET / 307 in 211ms
+ ○ Compiling /src/middleware ...
+ ✓ Compiled /src/middleware in 1265ms (174 modules)
+ ○ Compiling /admin ...
+ ✓ Compiled /admin in 1741ms (1156 modules)
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+prisma:query SELECT "public"."system_settings"."id", "public"."system_settings"."is_email_configured" FROM "public"."system_settings" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."transactions"."id" FROM "public"."transactions" WHERE "public"."transactions"."deleted_at" IS NULL OFFSET $1) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."users"."id" FROM "public"."users" WHERE "public"."users"."deleted_at" IS NULL OFFSET $1) AS "sub"
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."reference", "public"."transactions"."status"::text, "public"."transactions"."property_id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_user_id", "public"."transactions"."agent_user_id", "public"."transactions"."conveyancer_firm_id", "public"."transactions"."job_number", "public"."transactions"."contract_id", "public"."transactions"."seller_contact_address", "public"."transactions"."agent_contact_name", "public"."transactions"."agent_phone", "public"."transactions"."agent_email", "public"."transactions"."buyer_solicitor_name", "public"."transactions"."buyer_solicitor_phone", "public"."transactions"."buyer_solicitor_email", "public"."transactions"."buyer_contact_address", "public"."transactions"."ffa_submission_id", "public"."transactions"."seller_submitted_at", "public"."transactions"."buyer_accepted_at", "public"."transactions"."exchanged_at", "public"."transactions"."valuation_date", "public"."transactions"."scheduled_exchange_date", "public"."transactions"."current_version", "public"."transactions"."deleted_at", "public"."transactions"."created_at", "public"."transactions"."updated_at" FROM "public"."transactions" WHERE "public"."transactions"."deleted_at" IS NULL ORDER BY "public"."transactions"."created_at" DESC OFFSET $1
+prisma:query SELECT "public"."properties"."id", "public"."properties"."address_line1", "public"."properties"."city", "public"."properties"."postcode" FROM "public"."properties" WHERE "public"."properties"."id" IN ($1,$2,$3) OFFSET $4
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name" FROM "public"."users" WHERE "public"."users"."id" IN ($1,$2,$3) OFFSET $4
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."reference", "public"."transactions"."status"::text, "public"."transactions"."property_id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_user_id", "public"."transactions"."agent_user_id", "public"."transactions"."conveyancer_firm_id", "public"."transactions"."job_number", "public"."transactions"."contract_id", "public"."transactions"."seller_contact_address", "public"."transactions"."agent_contact_name", "public"."transactions"."agent_phone", "public"."transactions"."agent_email", "public"."transactions"."buyer_solicitor_name", "public"."transactions"."buyer_solicitor_phone", "public"."transactions"."buyer_solicitor_email", "public"."transactions"."buyer_contact_address", "public"."transactions"."ffa_submission_id", "public"."transactions"."seller_submitted_at", "public"."transactions"."buyer_accepted_at", "public"."transactions"."exchanged_at", "public"."transactions"."valuation_date", "public"."transactions"."scheduled_exchange_date", "public"."transactions"."current_version", "public"."transactions"."deleted_at", "public"."transactions"."created_at", "public"."transactions"."updated_at" FROM "public"."transactions" WHERE ("public"."transactions"."seller_id" = $1 AND "public"."transactions"."deleted_at" IS NULL) ORDER BY "public"."transactions"."created_at" DESC LIMIT $2 OFFSET $3
+ GET /admin 200 in 3285ms
+ GET / 307 in 642ms
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."reference", "public"."transactions"."status"::text, "public"."transactions"."property_id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_user_id", "public"."transactions"."agent_user_id", "public"."transactions"."conveyancer_firm_id", "public"."transactions"."job_number", "public"."transactions"."contract_id", "public"."transactions"."seller_contact_address", "public"."transactions"."agent_contact_name", "public"."transactions"."agent_phone", "public"."transactions"."agent_email", "public"."transactions"."buyer_solicitor_name", "public"."transactions"."buyer_solicitor_phone", "public"."transactions"."buyer_solicitor_email", "public"."transactions"."buyer_contact_address", "public"."transactions"."ffa_submission_id", "public"."transactions"."seller_submitted_at", "public"."transactions"."buyer_accepted_at", "public"."transactions"."exchanged_at", "public"."transactions"."valuation_date", "public"."transactions"."scheduled_exchange_date", "public"."transactions"."current_version", "public"."transactions"."deleted_at", "public"."transactions"."created_at", "public"."transactions"."updated_at" FROM "public"."transactions" WHERE ("public"."transactions"."seller_id" = $1 AND "public"."transactions"."deleted_at" IS NULL) ORDER BY "public"."transactions"."created_at" DESC LIMIT $2 OFFSET $3
+ GET / 307 in 883ms
+ ○ Compiling /seller/[txId] ...
+ ✓ Compiled /seller/[txId] in 4.6s (1162 modules)
+ GET /api/auth/session 200 in 769ms
+ ○ Compiling /admin/new ...
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⨯ Failed to generate static paths for /api/auth/[...nextauth]:
+TypeError: Cannot read properties of undefined (reading 'length')
+    at installChunk (C:\Users\markh\Downloads\ffa\.next\server\webpack-runtime.js:188:41)
+    at __webpack_require__.f.require (C:\Users\markh\Downloads\ffa\.next\server\webpack-runtime.js:198:15)
+    at C:\Users\markh\Downloads\ffa\.next\server\webpack-runtime.js:111:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e (C:\Users\markh\Downloads\ffa\.next\server\webpack-runtime.js:110:67)
+    at Array.map (<anonymous>)
+    at __webpack_require__.X (C:\Users\markh\Downloads\ffa\.next\server\webpack-runtime.js:162:22)
+    at C:\Users\markh\Downloads\ffa\.next\server\app\api\auth\[...nextauth]\route.js:333:47
+    at Object.<anonymous> (C:\Users\markh\Downloads\ffa\.next\server\app\api\auth\[...nextauth]\route.js:336:3)
+    at Module._compile (node:internal/modules/cjs/loader:1812:14) {
+  type: 'TypeError'
+}
+ GET /seller/00000000-0000-0000-0002-000000000001 200 in 8660ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled /admin/new in 3.5s (1171 modules)
+ GET /seller/00000000-0000-0000-0002-000000000001 200 in 3643ms
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."role"::text FROM "public"."users" WHERE ("public"."users"."deleted_at" IS NULL AND "public"."users"."role" IN (CAST($1::text AS "public"."UserRole"),CAST($2::text AS "public"."UserRole"),CAST($3::text AS "public"."UserRole"),CAST($4::text AS "public"."UserRole"),CAST($5::text AS "public"."UserRole"))) ORDER BY "public"."users"."role" ASC, "public"."users"."last_name" ASC OFFSET $6
+prisma:query SELECT "public"."firms"."id", "public"."firms"."name" FROM "public"."firms" WHERE 1=1 ORDER BY "public"."firms"."name" ASC OFFSET $1
+ GET /admin/new?_rsc=evlej 200 in 938ms
+ GET /api/auth/session 200 in 8544ms
+ GET /api/auth/session 200 in 295ms
+ ○ Compiling /api/transactions/[id] ...
+ ✓ Compiled /api/transactions/[id] in 4.5s (975 modules)
+ GET /api/auth/session 200 in 6230ms
+ GET /api/auth/session 200 in 146ms
+ GET /api/auth/session 200 in 259ms
+ GET /api/auth/session 200 in 158ms
+ GET /api/auth/csrf 200 in 443ms
+prisma:query SELECT 1
+prisma:query INSERT INTO "public"."audit_logs" ("id","transaction_id","user_id","event_type","event_data","ip_address","user_agent","created_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING "public"."audit_logs"."id", "public"."audit_logs"."transaction_id", "public"."audit_logs"."user_id", "public"."audit_logs"."event_type", "public"."audit_logs"."event_data", "public"."audit_logs"."ip_address", "public"."audit_logs"."user_agent", "public"."audit_logs"."created_at"
+ POST /api/auth/signout 200 in 203ms
+ GET /auth/signin 200 in 551ms
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_firm_id" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."reference", "public"."transactions"."status"::text, "public"."transactions"."property_id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_user_id", "public"."transactions"."agent_user_id", "public"."transactions"."conveyancer_firm_id", "public"."transactions"."job_number", "public"."transactions"."contract_id", "public"."transactions"."seller_contact_address", "public"."transactions"."agent_contact_name", "public"."transactions"."agent_phone", "public"."transactions"."agent_email", "public"."transactions"."buyer_solicitor_name", "public"."transactions"."buyer_solicitor_phone", "public"."transactions"."buyer_solicitor_email", "public"."transactions"."buyer_contact_address", "public"."transactions"."ffa_submission_id", "public"."transactions"."seller_submitted_at", "public"."transactions"."buyer_accepted_at", "public"."transactions"."exchanged_at", "public"."transactions"."valuation_date", "public"."transactions"."scheduled_exchange_date", "public"."transactions"."current_version", "public"."transactions"."deleted_at", "public"."transactions"."created_at", "public"."transactions"."updated_at" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."properties"."id", "public"."properties"."address_line1", "public"."properties"."address_line2", "public"."properties"."city", "public"."properties"."postcode", "public"."properties"."created_at", "public"."properties"."updated_at" FROM "public"."properties" WHERE "public"."properties"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+ GET /api/transactions/00000000-0000-0000-0002-000000000001 200 in 10244ms
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_firm_id" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."reference", "public"."transactions"."status"::text, "public"."transactions"."property_id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_user_id", "public"."transactions"."agent_user_id", "public"."transactions"."conveyancer_firm_id", "public"."transactions"."job_number", "public"."transactions"."contract_id", "public"."transactions"."seller_contact_address", "public"."transactions"."agent_contact_name", "public"."transactions"."agent_phone", "public"."transactions"."agent_email", "public"."transactions"."buyer_solicitor_name", "public"."transactions"."buyer_solicitor_phone", "public"."transactions"."buyer_solicitor_email", "public"."transactions"."buyer_contact_address", "public"."transactions"."ffa_submission_id", "public"."transactions"."seller_submitted_at", "public"."transactions"."buyer_accepted_at", "public"."transactions"."exchanged_at", "public"."transactions"."valuation_date", "public"."transactions"."scheduled_exchange_date", "public"."transactions"."current_version", "public"."transactions"."deleted_at", "public"."transactions"."created_at", "public"."transactions"."updated_at" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."properties"."id", "public"."properties"."address_line1", "public"."properties"."address_line2", "public"."properties"."city", "public"."properties"."postcode", "public"."properties"."created_at", "public"."properties"."updated_at" FROM "public"."properties" WHERE "public"."properties"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+ GET /api/transactions/00000000-0000-0000-0002-000000000001 200 in 464ms
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_firm_id" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."reference", "public"."transactions"."status"::text, "public"."transactions"."property_id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_user_id", "public"."transactions"."agent_user_id", "public"."transactions"."conveyancer_firm_id", "public"."transactions"."job_number", "public"."transactions"."contract_id", "public"."transactions"."seller_contact_address", "public"."transactions"."agent_contact_name", "public"."transactions"."agent_phone", "public"."transactions"."agent_email", "public"."transactions"."buyer_solicitor_name", "public"."transactions"."buyer_solicitor_phone", "public"."transactions"."buyer_solicitor_email", "public"."transactions"."buyer_contact_address", "public"."transactions"."ffa_submission_id", "public"."transactions"."seller_submitted_at", "public"."transactions"."buyer_accepted_at", "public"."transactions"."exchanged_at", "public"."transactions"."valuation_date", "public"."transactions"."scheduled_exchange_date", "public"."transactions"."current_version", "public"."transactions"."deleted_at", "public"."transactions"."created_at", "public"."transactions"."updated_at" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."properties"."id", "public"."properties"."address_line1", "public"."properties"."address_line2", "public"."properties"."city", "public"."properties"."postcode", "public"."properties"."created_at", "public"."properties"."updated_at" FROM "public"."properties" WHERE "public"."properties"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+ GET /api/transactions/00000000-0000-0000-0002-000000000001 200 in 288ms
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_firm_id" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."reference", "public"."transactions"."status"::text, "public"."transactions"."property_id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_user_id", "public"."transactions"."agent_user_id", "public"."transactions"."conveyancer_firm_id", "public"."transactions"."job_number", "public"."transactions"."contract_id", "public"."transactions"."seller_contact_address", "public"."transactions"."agent_contact_name", "public"."transactions"."agent_phone", "public"."transactions"."agent_email", "public"."transactions"."buyer_solicitor_name", "public"."transactions"."buyer_solicitor_phone", "public"."transactions"."buyer_solicitor_email", "public"."transactions"."buyer_contact_address", "public"."transactions"."ffa_submission_id", "public"."transactions"."seller_submitted_at", "public"."transactions"."buyer_accepted_at", "public"."transactions"."exchanged_at", "public"."transactions"."valuation_date", "public"."transactions"."scheduled_exchange_date", "public"."transactions"."current_version", "public"."transactions"."deleted_at", "public"."transactions"."created_at", "public"."transactions"."updated_at" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."properties"."id", "public"."properties"."address_line1", "public"."properties"."address_line2", "public"."properties"."city", "public"."properties"."postcode", "public"."properties"."created_at", "public"."properties"."updated_at" FROM "public"."properties" WHERE "public"."properties"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+ GET /api/transactions/00000000-0000-0000-0002-000000000001 200 in 180ms
+ GET /api/auth/session 200 in 176ms
+ GET /api/auth/session 200 in 172ms
+ GET /seller/00000000-0000-0000-0002-000000000001 200 in 311ms
+ GET /api/auth/session 200 in 582ms
+prisma:query SELECT 1
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_firm_id" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."reference", "public"."transactions"."status"::text, "public"."transactions"."property_id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_user_id", "public"."transactions"."agent_user_id", "public"."transactions"."conveyancer_firm_id", "public"."transactions"."job_number", "public"."transactions"."contract_id", "public"."transactions"."seller_contact_address", "public"."transactions"."agent_contact_name", "public"."transactions"."agent_phone", "public"."transactions"."agent_email", "public"."transactions"."buyer_solicitor_name", "public"."transactions"."buyer_solicitor_phone", "public"."transactions"."buyer_solicitor_email", "public"."transactions"."buyer_contact_address", "public"."transactions"."ffa_submission_id", "public"."transactions"."seller_submitted_at", "public"."transactions"."buyer_accepted_at", "public"."transactions"."exchanged_at", "public"."transactions"."valuation_date", "public"."transactions"."scheduled_exchange_date", "public"."transactions"."current_version", "public"."transactions"."deleted_at", "public"."transactions"."created_at", "public"."transactions"."updated_at" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."properties"."id", "public"."properties"."address_line1", "public"."properties"."address_line2", "public"."properties"."city", "public"."properties"."postcode", "public"."properties"."created_at", "public"."properties"."updated_at" FROM "public"."properties" WHERE "public"."properties"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+ GET /api/transactions/00000000-0000-0000-0002-000000000001 200 in 1511ms
+ GET /api/auth/session 200 in 777ms
+ GET /api/auth/session 200 in 266ms
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_firm_id" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."reference", "public"."transactions"."status"::text, "public"."transactions"."property_id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_user_id", "public"."transactions"."agent_user_id", "public"."transactions"."conveyancer_firm_id", "public"."transactions"."job_number", "public"."transactions"."contract_id", "public"."transactions"."seller_contact_address", "public"."transactions"."agent_contact_name", "public"."transactions"."agent_phone", "public"."transactions"."agent_email", "public"."transactions"."buyer_solicitor_name", "public"."transactions"."buyer_solicitor_phone", "public"."transactions"."buyer_solicitor_email", "public"."transactions"."buyer_contact_address", "public"."transactions"."ffa_submission_id", "public"."transactions"."seller_submitted_at", "public"."transactions"."buyer_accepted_at", "public"."transactions"."exchanged_at", "public"."transactions"."valuation_date", "public"."transactions"."scheduled_exchange_date", "public"."transactions"."current_version", "public"."transactions"."deleted_at", "public"."transactions"."created_at", "public"."transactions"."updated_at" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."properties"."id", "public"."properties"."address_line1", "public"."properties"."address_line2", "public"."properties"."city", "public"."properties"."postcode", "public"."properties"."created_at", "public"."properties"."updated_at" FROM "public"."properties" WHERE "public"."properties"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+ GET /api/transactions/00000000-0000-0000-0002-000000000001 200 in 493ms
+ GET /api/auth/session 200 in 379ms
+ GET /api/auth/session 200 in 168ms
+ GET /api/auth/session 200 in 146ms
+ GET /api/auth/providers 200 in 161ms
+ GET /api/auth/csrf 200 in 171ms
+prisma:query SELECT 1
+prisma:query SELECT "public"."users"."id", "public"."users"."email", "public"."users"."role"::text, "public"."users"."first_name", "public"."users"."last_name", "public"."users"."phone", "public"."users"."password_hash", "public"."users"."totp_secret", "public"."users"."totp_enabled", "public"."users"."failed_logins", "public"."users"."locked_until", "public"."users"."firm_id", "public"."users"."deleted_at", "public"."users"."created_at", "public"."users"."updated_at" FROM "public"."users" WHERE ("public"."users"."email" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query UPDATE "public"."users" SET "failed_logins" = $1, "locked_until" = $2, "updated_at" = $3 WHERE ("public"."users"."id" = $4 AND 1=1) RETURNING "public"."users"."id", "public"."users"."email", "public"."users"."role"::text, "public"."users"."first_name", "public"."users"."last_name", "public"."users"."phone", "public"."users"."password_hash", "public"."users"."totp_secret", "public"."users"."totp_enabled", "public"."users"."failed_logins", "public"."users"."locked_until", "public"."users"."firm_id", "public"."users"."deleted_at", "public"."users"."created_at", "public"."users"."updated_at"
+prisma:query INSERT INTO "public"."audit_logs" ("id","transaction_id","user_id","event_type","event_data","ip_address","user_agent","created_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING "public"."audit_logs"."id", "public"."audit_logs"."transaction_id", "public"."audit_logs"."user_id", "public"."audit_logs"."event_type", "public"."audit_logs"."event_data", "public"."audit_logs"."ip_address", "public"."audit_logs"."user_agent", "public"."audit_logs"."created_at"
+ POST /api/auth/callback/credentials 200 in 994ms
+ GET /api/auth/session 200 in 159ms
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."reference", "public"."transactions"."status"::text, "public"."transactions"."property_id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_user_id", "public"."transactions"."agent_user_id", "public"."transactions"."conveyancer_firm_id", "public"."transactions"."job_number", "public"."transactions"."contract_id", "public"."transactions"."seller_contact_address", "public"."transactions"."agent_contact_name", "public"."transactions"."agent_phone", "public"."transactions"."agent_email", "public"."transactions"."buyer_solicitor_name", "public"."transactions"."buyer_solicitor_phone", "public"."transactions"."buyer_solicitor_email", "public"."transactions"."buyer_contact_address", "public"."transactions"."ffa_submission_id", "public"."transactions"."seller_submitted_at", "public"."transactions"."buyer_accepted_at", "public"."transactions"."exchanged_at", "public"."transactions"."valuation_date", "public"."transactions"."scheduled_exchange_date", "public"."transactions"."current_version", "public"."transactions"."deleted_at", "public"."transactions"."created_at", "public"."transactions"."updated_at" FROM "public"."transactions" WHERE ("public"."transactions"."seller_id" = $1 AND "public"."transactions"."deleted_at" IS NULL) ORDER BY "public"."transactions"."created_at" DESC LIMIT $2 OFFSET $3
+ GET / 307 in 292ms
+ GET /seller/00000000-0000-0000-0002-000000000001 200 in 454ms
+ GET /api/auth/session 200 in 244ms
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_firm_id" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."reference", "public"."transactions"."status"::text, "public"."transactions"."property_id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_user_id", "public"."transactions"."agent_user_id", "public"."transactions"."conveyancer_firm_id", "public"."transactions"."job_number", "public"."transactions"."contract_id", "public"."transactions"."seller_contact_address", "public"."transactions"."agent_contact_name", "public"."transactions"."agent_phone", "public"."transactions"."agent_email", "public"."transactions"."buyer_solicitor_name", "public"."transactions"."buyer_solicitor_phone", "public"."transactions"."buyer_solicitor_email", "public"."transactions"."buyer_contact_address", "public"."transactions"."ffa_submission_id", "public"."transactions"."seller_submitted_at", "public"."transactions"."buyer_accepted_at", "public"."transactions"."exchanged_at", "public"."transactions"."valuation_date", "public"."transactions"."scheduled_exchange_date", "public"."transactions"."current_version", "public"."transactions"."deleted_at", "public"."transactions"."created_at", "public"."transactions"."updated_at" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."properties"."id", "public"."properties"."address_line1", "public"."properties"."address_line2", "public"."properties"."city", "public"."properties"."postcode", "public"."properties"."created_at", "public"."properties"."updated_at" FROM "public"."properties" WHERE "public"."properties"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+ GET /api/transactions/00000000-0000-0000-0002-000000000001 200 in 526ms
+ GET /api/auth/session 200 in 480ms
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_firm_id" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."reference", "public"."transactions"."status"::text, "public"."transactions"."property_id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_user_id", "public"."transactions"."agent_user_id", "public"."transactions"."conveyancer_firm_id", "public"."transactions"."job_number", "public"."transactions"."contract_id", "public"."transactions"."seller_contact_address", "public"."transactions"."agent_contact_name", "public"."transactions"."agent_phone", "public"."transactions"."agent_email", "public"."transactions"."buyer_solicitor_name", "public"."transactions"."buyer_solicitor_phone", "public"."transactions"."buyer_solicitor_email", "public"."transactions"."buyer_contact_address", "public"."transactions"."ffa_submission_id", "public"."transactions"."seller_submitted_at", "public"."transactions"."buyer_accepted_at", "public"."transactions"."exchanged_at", "public"."transactions"."valuation_date", "public"."transactions"."scheduled_exchange_date", "public"."transactions"."current_version", "public"."transactions"."deleted_at", "public"."transactions"."created_at", "public"."transactions"."updated_at" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."properties"."id", "public"."properties"."address_line1", "public"."properties"."address_line2", "public"."properties"."city", "public"."properties"."postcode", "public"."properties"."created_at", "public"."properties"."updated_at" FROM "public"."properties" WHERE "public"."properties"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+ GET /api/transactions/00000000-0000-0000-0002-000000000001 200 in 388ms
+ GET /api/auth/session 200 in 256ms
+ GET /seller/00000000-0000-0000-0002-000000000001 200 in 470ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /api/transactions/[id] in 2.2s (900 modules)
+ ✓ Compiled (1004 modules)
+ GET /favicon.ico 200 in 3931ms
+ GET /api/auth/session 200 in 3910ms
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_firm_id" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."reference", "public"."transactions"."status"::text, "public"."transactions"."property_id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_user_id", "public"."transactions"."agent_user_id", "public"."transactions"."conveyancer_firm_id", "public"."transactions"."job_number", "public"."transactions"."contract_id", "public"."transactions"."seller_contact_address", "public"."transactions"."agent_contact_name", "public"."transactions"."agent_phone", "public"."transactions"."agent_email", "public"."transactions"."buyer_solicitor_name", "public"."transactions"."buyer_solicitor_phone", "public"."transactions"."buyer_solicitor_email", "public"."transactions"."buyer_contact_address", "public"."transactions"."ffa_submission_id", "public"."transactions"."seller_submitted_at", "public"."transactions"."buyer_accepted_at", "public"."transactions"."exchanged_at", "public"."transactions"."valuation_date", "public"."transactions"."scheduled_exchange_date", "public"."transactions"."current_version", "public"."transactions"."deleted_at", "public"."transactions"."created_at", "public"."transactions"."updated_at" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."properties"."id", "public"."properties"."address_line1", "public"."properties"."address_line2", "public"."properties"."city", "public"."properties"."postcode", "public"."properties"."created_at", "public"."properties"."updated_at" FROM "public"."properties" WHERE "public"."properties"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+ GET /api/transactions/00000000-0000-0000-0002-000000000001 200 in 3471ms
+ GET /api/auth/session 200 in 472ms
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_firm_id" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."reference", "public"."transactions"."status"::text, "public"."transactions"."property_id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_user_id", "public"."transactions"."agent_user_id", "public"."transactions"."conveyancer_firm_id", "public"."transactions"."job_number", "public"."transactions"."contract_id", "public"."transactions"."seller_contact_address", "public"."transactions"."agent_contact_name", "public"."transactions"."agent_phone", "public"."transactions"."agent_email", "public"."transactions"."buyer_solicitor_name", "public"."transactions"."buyer_solicitor_phone", "public"."transactions"."buyer_solicitor_email", "public"."transactions"."buyer_contact_address", "public"."transactions"."ffa_submission_id", "public"."transactions"."seller_submitted_at", "public"."transactions"."buyer_accepted_at", "public"."transactions"."exchanged_at", "public"."transactions"."valuation_date", "public"."transactions"."scheduled_exchange_date", "public"."transactions"."current_version", "public"."transactions"."deleted_at", "public"."transactions"."created_at", "public"."transactions"."updated_at" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."properties"."id", "public"."properties"."address_line1", "public"."properties"."address_line2", "public"."properties"."city", "public"."properties"."postcode", "public"."properties"."created_at", "public"."properties"."updated_at" FROM "public"."properties" WHERE "public"."properties"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+ GET /api/transactions/00000000-0000-0000-0002-000000000001 200 in 301ms
+ ✓ Compiled in 2.5s (1181 modules)
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 980ms (870 modules)
+ GET /api/auth/session 200 in 1524ms
+ GET /seller/00000000-0000-0000-0002-000000000001 200 in 359ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 950ms (900 modules)
+ GET /favicon.ico 200 in 1332ms
+ GET /api/auth/session 200 in 687ms
+ ○ Compiling /api/transactions/[id] ...
+ ✓ Compiled /api/transactions/[id] in 736ms (1004 modules)
+ GET /api/auth/session 200 in 1931ms
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_firm_id" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."reference", "public"."transactions"."status"::text, "public"."transactions"."property_id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_user_id", "public"."transactions"."agent_user_id", "public"."transactions"."conveyancer_firm_id", "public"."transactions"."job_number", "public"."transactions"."contract_id", "public"."transactions"."seller_contact_address", "public"."transactions"."agent_contact_name", "public"."transactions"."agent_phone", "public"."transactions"."agent_email", "public"."transactions"."buyer_solicitor_name", "public"."transactions"."buyer_solicitor_phone", "public"."transactions"."buyer_solicitor_email", "public"."transactions"."buyer_contact_address", "public"."transactions"."ffa_submission_id", "public"."transactions"."seller_submitted_at", "public"."transactions"."buyer_accepted_at", "public"."transactions"."exchanged_at", "public"."transactions"."valuation_date", "public"."transactions"."scheduled_exchange_date", "public"."transactions"."current_version", "public"."transactions"."deleted_at", "public"."transactions"."created_at", "public"."transactions"."updated_at" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."properties"."id", "public"."properties"."address_line1", "public"."properties"."address_line2", "public"."properties"."city", "public"."properties"."postcode", "public"."properties"."created_at", "public"."properties"."updated_at" FROM "public"."properties" WHERE "public"."properties"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+ GET /api/transactions/00000000-0000-0000-0002-000000000001 200 in 2424ms
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_firm_id" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."reference", "public"."transactions"."status"::text, "public"."transactions"."property_id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_user_id", "public"."transactions"."agent_user_id", "public"."transactions"."conveyancer_firm_id", "public"."transactions"."job_number", "public"."transactions"."contract_id", "public"."transactions"."seller_contact_address", "public"."transactions"."agent_contact_name", "public"."transactions"."agent_phone", "public"."transactions"."agent_email", "public"."transactions"."buyer_solicitor_name", "public"."transactions"."buyer_solicitor_phone", "public"."transactions"."buyer_solicitor_email", "public"."transactions"."buyer_contact_address", "public"."transactions"."ffa_submission_id", "public"."transactions"."seller_submitted_at", "public"."transactions"."buyer_accepted_at", "public"."transactions"."exchanged_at", "public"."transactions"."valuation_date", "public"."transactions"."scheduled_exchange_date", "public"."transactions"."current_version", "public"."transactions"."deleted_at", "public"."transactions"."created_at", "public"."transactions"."updated_at" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."properties"."id", "public"."properties"."address_line1", "public"."properties"."address_line2", "public"."properties"."city", "public"."properties"."postcode", "public"."properties"."created_at", "public"."properties"."updated_at" FROM "public"."properties" WHERE "public"."properties"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+ GET /api/transactions/00000000-0000-0000-0002-000000000001 200 in 166ms
+ ○ Compiling /api/transactions/[id]/ffa/item-lookup ...
+ ✓ Compiled /api/transactions/[id]/ffa/item-lookup in 1300ms (1007 modules)
+prisma:query SELECT 1
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_firm_id" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+FFA API raw response: {"item_name":"Microwave Oven","brand":"SHARP","model":"","estimated_value":100,"sdlt_sensitivity":"Low","suggested_status":"Exclude","reasoning":"This is a freestanding Sharp microwave oven, which is typically considered a chattel and not included in the property sale unless explicitly agreed upon."}
+ POST /api/transactions/00000000-0000-0000-0002-000000000001/ffa/item-lookup 200 in 8713ms
+prisma:query SELECT 1
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_firm_id" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+FFA API raw response: {"item_name":"Integrated Electric Oven","brand":"AEG","model":"COMPETENCE","estimated_value":600,"sdlt_sensitivity":"High","suggested_status":"Include","reasoning":"The image clearly shows an AEG Competence integrated electric oven, which is built into the kitchen cabinetry and is typically considered a fixture."}
+ POST /api/transactions/00000000-0000-0000-0002-000000000001/ffa/item-lookup 200 in 4985ms
+ ✓ Compiled in 2.1s (1181 modules)
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 1124ms (870 modules)
+ GET /api/auth/session 200 in 1983ms
+ GET /api/auth/session 200 in 8441ms
+ GET /api/auth/session 200 in 213ms
+ GET /api/auth/session 200 in 211ms
+ GET /api/auth/session 200 in 813ms
+ ○ Compiling /api/transactions/[id]/ffa/item-lookup ...
+ ✓ Compiled /api/transactions/[id]/ffa/item-lookup in 3.1s (896 modules)
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_firm_id" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+FFA API raw response: {"item_name":"Integrated Electric Oven","brand":"AEG","model":"COMPETENCE","estimated_value":550,"sdlt_sensitivity":"High","suggested_status":"Include","reasoning":"This is an integrated electric oven from the AEG Competence range, built into the kitchen cabinetry, and is typically included in a property sale."}
+ POST /api/transactions/00000000-0000-0000-0002-000000000001/ffa/item-lookup 200 in 8782ms
+prisma:query SELECT 1
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_firm_id" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+FFA API raw response: {"item_name":"Integrated Electric Oven","brand":"AEG","model":"COMPETENCE","estimated_value":600,"sdlt_sensitivity":"High","suggested_status":"Include","reasoning":"The image clearly shows an AEG Competence integrated electric oven built into the kitchen cabinetry, which is typically included in a property sale."}
+ POST /api/transactions/00000000-0000-0000-0002-000000000001/ffa/item-lookup 200 in 4350ms
+ GET /api/auth/session 200 in 277ms
+ GET /api/auth/session 200 in 176ms
+ GET /api/auth/session 200 in 251ms
+ GET /seller/00000000-0000-0000-0002-000000000001 200 in 963ms
+ GET /api/auth/session 200 in 401ms
+ ○ Compiling /api/transactions/[id] ...
+ ✓ Compiled /api/transactions/[id] in 1130ms (975 modules)
+ GET /api/auth/session 200 in 2566ms
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_firm_id" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."reference", "public"."transactions"."status"::text, "public"."transactions"."property_id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_user_id", "public"."transactions"."agent_user_id", "public"."transactions"."conveyancer_firm_id", "public"."transactions"."job_number", "public"."transactions"."contract_id", "public"."transactions"."seller_contact_address", "public"."transactions"."agent_contact_name", "public"."transactions"."agent_phone", "public"."transactions"."agent_email", "public"."transactions"."buyer_solicitor_name", "public"."transactions"."buyer_solicitor_phone", "public"."transactions"."buyer_solicitor_email", "public"."transactions"."buyer_contact_address", "public"."transactions"."ffa_submission_id", "public"."transactions"."seller_submitted_at", "public"."transactions"."buyer_accepted_at", "public"."transactions"."exchanged_at", "public"."transactions"."valuation_date", "public"."transactions"."scheduled_exchange_date", "public"."transactions"."current_version", "public"."transactions"."deleted_at", "public"."transactions"."created_at", "public"."transactions"."updated_at" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."properties"."id", "public"."properties"."address_line1", "public"."properties"."address_line2", "public"."properties"."city", "public"."properties"."postcode", "public"."properties"."created_at", "public"."properties"."updated_at" FROM "public"."properties" WHERE "public"."properties"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+ GET /api/transactions/00000000-0000-0000-0002-000000000001 200 in 3148ms
+ GET /api/auth/session 200 in 366ms
+ GET /api/auth/session 200 in 382ms
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_firm_id" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."reference", "public"."transactions"."status"::text, "public"."transactions"."property_id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_user_id", "public"."transactions"."agent_user_id", "public"."transactions"."conveyancer_firm_id", "public"."transactions"."job_number", "public"."transactions"."contract_id", "public"."transactions"."seller_contact_address", "public"."transactions"."agent_contact_name", "public"."transactions"."agent_phone", "public"."transactions"."agent_email", "public"."transactions"."buyer_solicitor_name", "public"."transactions"."buyer_solicitor_phone", "public"."transactions"."buyer_solicitor_email", "public"."transactions"."buyer_contact_address", "public"."transactions"."ffa_submission_id", "public"."transactions"."seller_submitted_at", "public"."transactions"."buyer_accepted_at", "public"."transactions"."exchanged_at", "public"."transactions"."valuation_date", "public"."transactions"."scheduled_exchange_date", "public"."transactions"."current_version", "public"."transactions"."deleted_at", "public"."transactions"."created_at", "public"."transactions"."updated_at" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."properties"."id", "public"."properties"."address_line1", "public"."properties"."address_line2", "public"."properties"."city", "public"."properties"."postcode", "public"."properties"."created_at", "public"."properties"."updated_at" FROM "public"."properties" WHERE "public"."properties"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+ GET /api/transactions/00000000-0000-0000-0002-000000000001 200 in 553ms
+ GET /api/auth/session 200 in 395ms
+ GET /api/auth/session 200 in 187ms
+ GET /api/auth/session 200 in 378ms
+ GET /api/auth/session 200 in 183ms
+ GET /api/auth/session 200 in 168ms
+ GET /api/auth/session 200 in 114ms
+ GET /api/auth/session 200 in 175ms
+ GET /seller/00000000-0000-0000-0002-000000000001 200 in 287ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /api/transactions/[id] in 2.6s (900 modules)
+ ✓ Compiled (1004 modules)
+ GET /favicon.ico 200 in 5105ms
+ GET /api/auth/session 200 in 4877ms
+prisma:query SELECT 1
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_firm_id" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."reference", "public"."transactions"."status"::text, "public"."transactions"."property_id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_user_id", "public"."transactions"."agent_user_id", "public"."transactions"."conveyancer_firm_id", "public"."transactions"."job_number", "public"."transactions"."contract_id", "public"."transactions"."seller_contact_address", "public"."transactions"."agent_contact_name", "public"."transactions"."agent_phone", "public"."transactions"."agent_email", "public"."transactions"."buyer_solicitor_name", "public"."transactions"."buyer_solicitor_phone", "public"."transactions"."buyer_solicitor_email", "public"."transactions"."buyer_contact_address", "public"."transactions"."ffa_submission_id", "public"."transactions"."seller_submitted_at", "public"."transactions"."buyer_accepted_at", "public"."transactions"."exchanged_at", "public"."transactions"."valuation_date", "public"."transactions"."scheduled_exchange_date", "public"."transactions"."current_version", "public"."transactions"."deleted_at", "public"."transactions"."created_at", "public"."transactions"."updated_at" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."properties"."id", "public"."properties"."address_line1", "public"."properties"."address_line2", "public"."properties"."city", "public"."properties"."postcode", "public"."properties"."created_at", "public"."properties"."updated_at" FROM "public"."properties" WHERE "public"."properties"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+ GET /api/transactions/00000000-0000-0000-0002-000000000001 200 in 4500ms
+ GET /api/auth/session 200 in 455ms
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_firm_id" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."reference", "public"."transactions"."status"::text, "public"."transactions"."property_id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_user_id", "public"."transactions"."agent_user_id", "public"."transactions"."conveyancer_firm_id", "public"."transactions"."job_number", "public"."transactions"."contract_id", "public"."transactions"."seller_contact_address", "public"."transactions"."agent_contact_name", "public"."transactions"."agent_phone", "public"."transactions"."agent_email", "public"."transactions"."buyer_solicitor_name", "public"."transactions"."buyer_solicitor_phone", "public"."transactions"."buyer_solicitor_email", "public"."transactions"."buyer_contact_address", "public"."transactions"."ffa_submission_id", "public"."transactions"."seller_submitted_at", "public"."transactions"."buyer_accepted_at", "public"."transactions"."exchanged_at", "public"."transactions"."valuation_date", "public"."transactions"."scheduled_exchange_date", "public"."transactions"."current_version", "public"."transactions"."deleted_at", "public"."transactions"."created_at", "public"."transactions"."updated_at" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."properties"."id", "public"."properties"."address_line1", "public"."properties"."address_line2", "public"."properties"."city", "public"."properties"."postcode", "public"."properties"."created_at", "public"."properties"."updated_at" FROM "public"."properties" WHERE "public"."properties"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE "public"."users"."id" IN ($1) OFFSET $2
+ GET /api/transactions/00000000-0000-0000-0002-000000000001 200 in 408ms
+ ○ Compiling /api/transactions/[id]/ffa/item-lookup ...
+ ✓ Compiled /api/transactions/[id]/ffa/item-lookup in 991ms (1007 modules)
+prisma:query SELECT 1
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_firm_id" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+FFA API raw response: {"item_name":"Integrated Cooker Hood","brand":"Hotpoint","model":"","estimated_value":200,"sdlt_sensitivity":"High","suggested_status":"Include","reasoning":"This is a permanently installed kitchen appliance, identified as a Hotpoint integrated cooker hood, typically included with the property sale."}
+ POST /api/transactions/00000000-0000-0000-0002-000000000001/ffa/item-lookup 200 in 7630ms
+prisma:query SELECT 1
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_firm_id" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+FFA API raw response: {"item_name":"Integrated Electric Oven","brand":"AEG","model":"COMPETENCE","estimated_value":550,"sdlt_sensitivity":"High","suggested_status":"Include","reasoning":"The image clearly displays an AEG Competence integrated electric oven, which is a built-in appliance and therefore considered a permanent fixture of the kitchen."}
+ POST /api/transactions/00000000-0000-0000-0002-000000000001/ffa/item-lookup 200 in 4477ms
+prisma:query SELECT 1
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_firm_id" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+FFA API raw response: {"item_name":"Microwave Oven","brand":"Sharp","model":"","estimated_value":120,"sdlt_sensitivity":"Low","suggested_status":"Negotiate","reasoning":"The image clearly shows a freestanding Sharp microwave oven, which is typically a negotiable item in property sales."}
+ POST /api/transactions/00000000-0000-0000-0002-000000000001/ffa/item-lookup 200 in 5131ms
+ ○ Compiling /api/transactions/[id]/ffa/save-draft ...
+ ✓ Compiled /api/transactions/[id]/ffa/save-draft in 1995ms (896 modules)
+prisma:query SELECT 1
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_firm_id" FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."status"::text FROM "public"."transactions" WHERE ("public"."transactions"."id" = $1 AND "public"."transactions"."deleted_at" IS NULL) LIMIT $2 OFFSET $3
+prisma:query BEGIN
+prisma:query DELETE FROM "public"."fixtures_items" WHERE "public"."fixtures_items"."transaction_id" = $1
+prisma:query ROLLBACK
+prisma:error 
+Invalid `prisma.fixturesItem.deleteMany()` invocation:
+
+
+Foreign key constraint violated: `marketing_inclusions_fixtures_item_id_fkey (index)`
+prisma:error Foreign key constraint violated: `marketing_inclusions_fixtures_item_id_fkey (index)`
+ ⨯ PrismaClientKnownRequestError: 
+Invalid `prisma.fixturesItem.deleteMany()` invocation:
+
+
+Foreign key constraint violated: `marketing_inclusions_fixtures_item_id_fkey (index)`
+    at $n.handleRequestError (C:\Users\markh\Downloads\ffa\node_modules\@prisma\client\runtime\library.js:121:7315)
+    at $n.handleAndLogRequestError (C:\Users\markh\Downloads\ffa\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\markh\Downloads\ffa\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\markh\Downloads\ffa\node_modules\@prisma\client\runtime\library.js:130:9633) {
+  code: 'P2003',
+  clientVersion: '5.22.0',
+  meta: {
+    modelName: 'FixturesItem',
+    field_name: 'marketing_inclusions_fixtures_item_id_fkey (index)'
+  }
+}
+ POST /api/transactions/00000000-0000-0000-0002-000000000001/ffa/save-draft 500 in 4832ms
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 3.6s (870 modules)
+ GET /api/auth/session 200 in 5925ms
+ GET /api/auth/session 200 in 293ms
+ GET /api/auth/session 200 in 379ms
+ GET /api/auth/session 200 in 224ms
+ GET /api/auth/csrf 200 in 182ms
+prisma:query INSERT INTO "public"."audit_logs" ("id","transaction_id","user_id","event_type","event_data","ip_address","user_agent","created_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING "public"."audit_logs"."id", "public"."audit_logs"."transaction_id", "public"."audit_logs"."user_id", "public"."audit_logs"."event_type", "public"."audit_logs"."event_data", "public"."audit_logs"."ip_address", "public"."audit_logs"."user_agent", "public"."audit_logs"."created_at"
+ POST /api/auth/signout 200 in 482ms
+ GET /auth/signin 200 in 564ms
+ GET /api/auth/session 200 in 577ms
+ GET /api/auth/session 200 in 245ms
+ GET /api/auth/session 200 in 170ms
+ GET /api/auth/session 200 in 205ms
+ GET /api/auth/session 200 in 173ms
+ GET /api/auth/session 200 in 195ms
+ GET /api/auth/session 200 in 151ms
+ GET /api/auth/session 200 in 196ms
+ GET /api/auth/session 200 in 239ms
+ GET /api/auth/csrf 200 in 171ms
+prisma:query SELECT 1
+prisma:query INSERT INTO "public"."audit_logs" ("id","transaction_id","user_id","event_type","event_data","ip_address","user_agent","created_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING "public"."audit_logs"."id", "public"."audit_logs"."transaction_id", "public"."audit_logs"."user_id", "public"."audit_logs"."event_type", "public"."audit_logs"."event_data", "public"."audit_logs"."ip_address", "public"."audit_logs"."user_agent", "public"."audit_logs"."created_at"
+ POST /api/auth/signout 200 in 151ms
+ GET /auth/signin 200 in 240ms
+ GET /api/auth/session 200 in 276ms
+ GET /api/auth/session 200 in 195ms
+ GET /api/auth/providers 200 in 181ms
+ GET /api/auth/csrf 200 in 194ms
+prisma:query SELECT 1
+prisma:query SELECT "public"."users"."id", "public"."users"."email", "public"."users"."role"::text, "public"."users"."first_name", "public"."users"."last_name", "public"."users"."phone", "public"."users"."password_hash", "public"."users"."totp_secret", "public"."users"."totp_enabled", "public"."users"."failed_logins", "public"."users"."locked_until", "public"."users"."firm_id", "public"."users"."deleted_at", "public"."users"."created_at", "public"."users"."updated_at" FROM "public"."users" WHERE ("public"."users"."email" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query UPDATE "public"."users" SET "failed_logins" = $1, "locked_until" = $2, "updated_at" = $3 WHERE ("public"."users"."id" = $4 AND 1=1) RETURNING "public"."users"."id", "public"."users"."email", "public"."users"."role"::text, "public"."users"."first_name", "public"."users"."last_name", "public"."users"."phone", "public"."users"."password_hash", "public"."users"."totp_secret", "public"."users"."totp_enabled", "public"."users"."failed_logins", "public"."users"."locked_until", "public"."users"."firm_id", "public"."users"."deleted_at", "public"."users"."created_at", "public"."users"."updated_at"
+prisma:query INSERT INTO "public"."audit_logs" ("id","transaction_id","user_id","event_type","event_data","ip_address","user_agent","created_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING "public"."audit_logs"."id", "public"."audit_logs"."transaction_id", "public"."audit_logs"."user_id", "public"."audit_logs"."event_type", "public"."audit_logs"."event_data", "public"."audit_logs"."ip_address", "public"."audit_logs"."user_agent", "public"."audit_logs"."created_at"
+ POST /api/auth/callback/credentials 200 in 2825ms
+ GET /api/auth/session 200 in 162ms
+ GET / 307 in 286ms
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."users"."id" FROM "public"."users" WHERE "public"."users"."deleted_at" IS NULL OFFSET $1) AS "sub"
+prisma:query SELECT "public"."system_settings"."id", "public"."system_settings"."is_email_configured" FROM "public"."system_settings" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."reference", "public"."transactions"."status"::text, "public"."transactions"."property_id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_user_id", "public"."transactions"."agent_user_id", "public"."transactions"."conveyancer_firm_id", "public"."transactions"."job_number", "public"."transactions"."contract_id", "public"."transactions"."seller_contact_address", "public"."transactions"."agent_contact_name", "public"."transactions"."agent_phone", "public"."transactions"."agent_email", "public"."transactions"."buyer_solicitor_name", "public"."transactions"."buyer_solicitor_phone", "public"."transactions"."buyer_solicitor_email", "public"."transactions"."buyer_contact_address", "public"."transactions"."ffa_submission_id", "public"."transactions"."seller_submitted_at", "public"."transactions"."buyer_accepted_at", "public"."transactions"."exchanged_at", "public"."transactions"."valuation_date", "public"."transactions"."scheduled_exchange_date", "public"."transactions"."current_version", "public"."transactions"."deleted_at", "public"."transactions"."created_at", "public"."transactions"."updated_at" FROM "public"."transactions" WHERE "public"."transactions"."deleted_at" IS NULL ORDER BY "public"."transactions"."created_at" DESC OFFSET $1
+prisma:query SELECT "public"."properties"."id", "public"."properties"."address_line1", "public"."properties"."city", "public"."properties"."postcode" FROM "public"."properties" WHERE "public"."properties"."id" IN ($1,$2,$3) OFFSET $4
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."transactions"."id" FROM "public"."transactions" WHERE "public"."transactions"."deleted_at" IS NULL OFFSET $1) AS "sub"
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name" FROM "public"."users" WHERE "public"."users"."id" IN ($1,$2,$3) OFFSET $4
+ GET /admin 200 in 602ms
+ GET /api/auth/session 200 in 272ms
+ GET /api/auth/session 200 in 239ms
+prisma:query SELECT "public"."firms"."id", "public"."firms"."name" FROM "public"."firms" WHERE 1=1 ORDER BY "public"."firms"."name" ASC OFFSET $1
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."role"::text FROM "public"."users" WHERE ("public"."users"."deleted_at" IS NULL AND "public"."users"."role" IN (CAST($1::text AS "public"."UserRole"),CAST($2::text AS "public"."UserRole"),CAST($3::text AS "public"."UserRole"),CAST($4::text AS "public"."UserRole"),CAST($5::text AS "public"."UserRole"))) ORDER BY "public"."users"."role" ASC, "public"."users"."last_name" ASC OFFSET $6
+ GET /admin/new?tab=transaction&_rsc=evlej 200 in 194ms
+ ○ Compiling /api/transactions ...
+ ✓ Compiled /api/transactions in 2.4s (976 modules)
+prisma:query SELECT 1
+prisma:query SELECT "public"."users"."id", "public"."users"."role"::text, "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE ("public"."users"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."transactions"."id" FROM "public"."transactions" WHERE "public"."transactions"."reference"::text LIKE $1 OFFSET $2) AS "sub"
+prisma:query INSERT INTO "public"."users" ("id","email","role","first_name","last_name","phone","totp_enabled","failed_logins","created_at","updated_at") VALUES ($1,$2,CAST($3::text AS "public"."UserRole"),$4,$5,$6,$7,$8,$9,$10) ON CONFLICT ("email") DO UPDATE SET "phone" = $11, "updated_at" = $12 WHERE ("public"."users"."email" = $13 AND 1=1) RETURNING "public"."users"."id", "public"."users"."email", "public"."users"."role"::text, "public"."users"."first_name", "public"."users"."last_name", "public"."users"."phone", "public"."users"."password_hash", "public"."users"."totp_secret", "public"."users"."totp_enabled", "public"."users"."failed_logins", "public"."users"."locked_until", "public"."users"."firm_id", "public"."users"."deleted_at", "public"."users"."created_at", "public"."users"."updated_at"
+prisma:query BEGIN
+prisma:query SELECT "public"."users"."id" FROM "public"."users" WHERE ("public"."users"."email" = $1 AND 1=1) OFFSET $2
+prisma:query INSERT INTO "public"."users" ("id","email","role","first_name","last_name","phone","totp_enabled","failed_logins","created_at","updated_at") VALUES ($1,$2,CAST($3::text AS "public"."UserRole"),$4,$5,$6,$7,$8,$9,$10) RETURNING "public"."users"."id"
+prisma:query SELECT "public"."users"."id", "public"."users"."email", "public"."users"."role"::text, "public"."users"."first_name", "public"."users"."last_name", "public"."users"."phone", "public"."users"."password_hash", "public"."users"."totp_secret", "public"."users"."totp_enabled", "public"."users"."failed_logins", "public"."users"."locked_until", "public"."users"."firm_id", "public"."users"."deleted_at", "public"."users"."created_at", "public"."users"."updated_at" FROM "public"."users" WHERE "public"."users"."id" = $1 LIMIT $2 OFFSET $3
+prisma:query COMMIT
+prisma:query INSERT INTO "public"."properties" ("id","address_line1","address_line2","city","postcode","created_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "public"."properties"."id", "public"."properties"."address_line1", "public"."properties"."address_line2", "public"."properties"."city", "public"."properties"."postcode", "public"."properties"."created_at", "public"."properties"."updated_at"
+prisma:query INSERT INTO "public"."transactions" ("id","reference","status","property_id","seller_id","buyer_id","conveyancer_user_id","agent_user_id","conveyancer_firm_id","agent_contact_name","agent_phone","agent_email","current_version","created_at","updated_at") VALUES ($1,$2,CAST($3::text AS "public"."TransactionStatus"),$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING "public"."transactions"."id", "public"."transactions"."reference", "public"."transactions"."status"::text, "public"."transactions"."property_id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_user_id", "public"."transactions"."agent_user_id", "public"."transactions"."conveyancer_firm_id", "public"."transactions"."job_number", "public"."transactions"."contract_id", "public"."transactions"."seller_contact_address", "public"."transactions"."agent_contact_name", "public"."transactions"."agent_phone", "public"."transactions"."agent_email", "public"."transactions"."buyer_solicitor_name", "public"."transactions"."buyer_solicitor_phone", "public"."transactions"."buyer_solicitor_email", "public"."transactions"."buyer_contact_address", "public"."transactions"."ffa_submission_id", "public"."transactions"."seller_submitted_at", "public"."transactions"."buyer_accepted_at", "public"."transactions"."exchanged_at", "public"."transactions"."valuation_date", "public"."transactions"."scheduled_exchange_date", "public"."transactions"."current_version", "public"."transactions"."deleted_at", "public"."transactions"."created_at", "public"."transactions"."updated_at"
+ POST /api/transactions 201 in 3641ms
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT "public"."system_settings"."id", "public"."system_settings"."smtp_host", "public"."system_settings"."smtp_port", "public"."system_settings"."smtp_user", "public"."system_settings"."smtp_pass_encrypted", "public"."system_settings"."email_from_name", "public"."system_settings"."email_from_address", "public"."system_settings"."is_email_configured", "public"."system_settings"."updated_by_user_id", "public"."system_settings"."updated_at" FROM "public"."system_settings" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT "public"."system_settings"."id", "public"."system_settings"."smtp_host", "public"."system_settings"."smtp_port", "public"."system_settings"."smtp_user", "public"."system_settings"."smtp_pass_encrypted", "public"."system_settings"."email_from_name", "public"."system_settings"."email_from_address", "public"."system_settings"."is_email_configured", "public"."system_settings"."updated_by_user_id", "public"."system_settings"."updated_at" FROM "public"."system_settings" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query INSERT INTO "public"."audit_logs" ("id","transaction_id","user_id","event_type","event_data","ip_address","user_agent","created_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING "public"."audit_logs"."id", "public"."audit_logs"."transaction_id", "public"."audit_logs"."user_id", "public"."audit_logs"."event_type", "public"."audit_logs"."event_data", "public"."audit_logs"."ip_address", "public"."audit_logs"."user_agent", "public"."audit_logs"."created_at"
+[16:19:25.860] [31mERROR[39m (23304): [36mEmail send failed[39m
+    [35mevent[39m: "TRANSACTION_ASSIGNED_AGENT"
+    err: {
+      "type": "Error",
+      "message": "self-signed certificate in certificate chain",
+      "stack":
+          Error: self-signed certificate in certificate chain
+              at TLSSocket.onConnectSecure (node:internal/tls/wrap:1649:34)
+              at TLSSocket.emit (node:events:508:28)
+              at TLSSocket._finishInit (node:internal/tls/wrap:1095:8)
+              at ssl.onhandshakedone (node:internal/tls/wrap:881:12)
+      "code": "ESOCKET",
+      "command": "CONN"
+    }
+[16:19:25.878] [31mERROR[39m (23304): [36mEmail send failed[39m
+    [35mevent[39m: "SELLER_FORM_INVITE"
+    err: {
+      "type": "Error",
+      "message": "self-signed certificate in certificate chain",
+      "stack":
+          Error: self-signed certificate in certificate chain
+              at TLSSocket.onConnectSecure (node:internal/tls/wrap:1649:34)
+              at TLSSocket.emit (node:events:508:28)
+              at TLSSocket._finishInit (node:internal/tls/wrap:1095:8)
+              at ssl.onhandshakedone (node:internal/tls/wrap:881:12)
+      "code": "ESOCKET",
+      "command": "CONN"
+    }
+prisma:query SELECT "public"."firms"."id", "public"."firms"."name" FROM "public"."firms" WHERE 1=1 ORDER BY "public"."firms"."name" ASC OFFSET $1
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."role"::text FROM "public"."users" WHERE ("public"."users"."deleted_at" IS NULL AND "public"."users"."role" IN (CAST($1::text AS "public"."UserRole"),CAST($2::text AS "public"."UserRole"),CAST($3::text AS "public"."UserRole"),CAST($4::text AS "public"."UserRole"),CAST($5::text AS "public"."UserRole"))) ORDER BY "public"."users"."role" ASC, "public"."users"."last_name" ASC OFFSET $6
+ GET /admin/new?tab=transaction&_rsc=ihz8b 200 in 760ms
+ GET /api/auth/session 200 in 179ms
+ GET /api/auth/session 200 in 259ms
+prisma:query SELECT "public"."users"."id", "public"."users"."role"::text, "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."phone" FROM "public"."users" WHERE ("public"."users"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."transactions"."id" FROM "public"."transactions" WHERE "public"."transactions"."reference"::text LIKE $1 OFFSET $2) AS "sub"
+prisma:query INSERT INTO "public"."users" ("id","email","role","first_name","last_name","phone","totp_enabled","failed_logins","created_at","updated_at") VALUES ($1,$2,CAST($3::text AS "public"."UserRole"),$4,$5,$6,$7,$8,$9,$10) ON CONFLICT ("email") DO UPDATE SET "phone" = $11, "updated_at" = $12 WHERE ("public"."users"."email" = $13 AND 1=1) RETURNING "public"."users"."id", "public"."users"."email", "public"."users"."role"::text, "public"."users"."first_name", "public"."users"."last_name", "public"."users"."phone", "public"."users"."password_hash", "public"."users"."totp_secret", "public"."users"."totp_enabled", "public"."users"."failed_logins", "public"."users"."locked_until", "public"."users"."firm_id", "public"."users"."deleted_at", "public"."users"."created_at", "public"."users"."updated_at"
+prisma:query BEGIN
+prisma:query SELECT "public"."users"."id" FROM "public"."users" WHERE ("public"."users"."email" = $1 AND 1=1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."email", "public"."users"."role"::text, "public"."users"."first_name", "public"."users"."last_name", "public"."users"."phone", "public"."users"."password_hash", "public"."users"."totp_secret", "public"."users"."totp_enabled", "public"."users"."failed_logins", "public"."users"."locked_until", "public"."users"."firm_id", "public"."users"."deleted_at", "public"."users"."created_at", "public"."users"."updated_at" FROM "public"."users" WHERE ("public"."users"."id" = $1 AND ("public"."users"."email" = $2 AND 1=1)) LIMIT $3 OFFSET $4
+prisma:query SELECT "public"."users"."id", "public"."users"."email", "public"."users"."role"::text, "public"."users"."first_name", "public"."users"."last_name", "public"."users"."phone", "public"."users"."password_hash", "public"."users"."totp_secret", "public"."users"."totp_enabled", "public"."users"."failed_logins", "public"."users"."locked_until", "public"."users"."firm_id", "public"."users"."deleted_at", "public"."users"."created_at", "public"."users"."updated_at" FROM "public"."users" WHERE "public"."users"."id" = $1 LIMIT $2 OFFSET $3
+prisma:query COMMIT
+prisma:query INSERT INTO "public"."properties" ("id","address_line1","address_line2","city","postcode","created_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "public"."properties"."id", "public"."properties"."address_line1", "public"."properties"."address_line2", "public"."properties"."city", "public"."properties"."postcode", "public"."properties"."created_at", "public"."properties"."updated_at"
+prisma:query INSERT INTO "public"."transactions" ("id","reference","status","property_id","seller_id","buyer_id","conveyancer_user_id","agent_user_id","conveyancer_firm_id","agent_contact_name","agent_phone","agent_email","current_version","created_at","updated_at") VALUES ($1,$2,CAST($3::text AS "public"."TransactionStatus"),$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING "public"."transactions"."id", "public"."transactions"."reference", "public"."transactions"."status"::text, "public"."transactions"."property_id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_user_id", "public"."transactions"."agent_user_id", "public"."transactions"."conveyancer_firm_id", "public"."transactions"."job_number", "public"."transactions"."contract_id", "public"."transactions"."seller_contact_address", "public"."transactions"."agent_contact_name", "public"."transactions"."agent_phone", "public"."transactions"."agent_email", "public"."transactions"."buyer_solicitor_name", "public"."transactions"."buyer_solicitor_phone", "public"."transactions"."buyer_solicitor_email", "public"."transactions"."buyer_contact_address", "public"."transactions"."ffa_submission_id", "public"."transactions"."seller_submitted_at", "public"."transactions"."buyer_accepted_at", "public"."transactions"."exchanged_at", "public"."transactions"."valuation_date", "public"."transactions"."scheduled_exchange_date", "public"."transactions"."current_version", "public"."transactions"."deleted_at", "public"."transactions"."created_at", "public"."transactions"."updated_at"
+ POST /api/transactions 201 in 436ms
+prisma:query INSERT INTO "public"."audit_logs" ("id","transaction_id","user_id","event_type","event_data","ip_address","user_agent","created_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING "public"."audit_logs"."id", "public"."audit_logs"."transaction_id", "public"."audit_logs"."user_id", "public"."audit_logs"."event_type", "public"."audit_logs"."event_data", "public"."audit_logs"."ip_address", "public"."audit_logs"."user_agent", "public"."audit_logs"."created_at"
+prisma:query SELECT "public"."system_settings"."id", "public"."system_settings"."smtp_host", "public"."system_settings"."smtp_port", "public"."system_settings"."smtp_user", "public"."system_settings"."smtp_pass_encrypted", "public"."system_settings"."email_from_name", "public"."system_settings"."email_from_address", "public"."system_settings"."is_email_configured", "public"."system_settings"."updated_by_user_id", "public"."system_settings"."updated_at" FROM "public"."system_settings" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT "public"."system_settings"."id", "public"."system_settings"."smtp_host", "public"."system_settings"."smtp_port", "public"."system_settings"."smtp_user", "public"."system_settings"."smtp_pass_encrypted", "public"."system_settings"."email_from_name", "public"."system_settings"."email_from_address", "public"."system_settings"."is_email_configured", "public"."system_settings"."updated_by_user_id", "public"."system_settings"."updated_at" FROM "public"."system_settings" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT "public"."firms"."id", "public"."firms"."name" FROM "public"."firms" WHERE 1=1 ORDER BY "public"."firms"."name" ASC OFFSET $1
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."role"::text FROM "public"."users" WHERE ("public"."users"."deleted_at" IS NULL AND "public"."users"."role" IN (CAST($1::text AS "public"."UserRole"),CAST($2::text AS "public"."UserRole"),CAST($3::text AS "public"."UserRole"),CAST($4::text AS "public"."UserRole"),CAST($5::text AS "public"."UserRole"))) ORDER BY "public"."users"."role" ASC, "public"."users"."last_name" ASC OFFSET $6
+ GET /admin/new?tab=transaction&_rsc=ihz8b 200 in 253ms
+[16:23:48.892] [31mERROR[39m (23304): [36mEmail send failed[39m
+    [35mevent[39m: "SELLER_FORM_INVITE"
+    err: {
+      "type": "Error",
+      "message": "self-signed certificate in certificate chain",
+      "stack":
+          Error: self-signed certificate in certificate chain
+              at TLSSocket.onConnectSecure (node:internal/tls/wrap:1649:34)
+              at TLSSocket.emit (node:events:508:28)
+              at TLSSocket._finishInit (node:internal/tls/wrap:1095:8)
+              at ssl.onhandshakedone (node:internal/tls/wrap:881:12)
+      "code": "ESOCKET",
+      "command": "CONN"
+    }
+[16:23:48.909] [31mERROR[39m (23304): [36mEmail send failed[39m
+    [35mevent[39m: "TRANSACTION_ASSIGNED_AGENT"
+    err: {
+      "type": "Error",
+      "message": "self-signed certificate in certificate chain",
+      "stack":
+          Error: self-signed certificate in certificate chain
+              at TLSSocket.onConnectSecure (node:internal/tls/wrap:1649:34)
+              at TLSSocket.emit (node:events:508:28)
+              at TLSSocket._finishInit (node:internal/tls/wrap:1095:8)
+              at ssl.onhandshakedone (node:internal/tls/wrap:881:12)
+      "code": "ESOCKET",
+      "command": "CONN"
+    }
+ ✓ Compiled in 2.6s (315 modules)
+ ✓ Compiled in 1211ms (315 modules)
+prisma:query SELECT "public"."firms"."id", "public"."firms"."name" FROM "public"."firms" WHERE 1=1 ORDER BY "public"."firms"."name" ASC OFFSET $1
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."role"::text FROM "public"."users" WHERE ("public"."users"."deleted_at" IS NULL AND "public"."users"."role" IN (CAST($1::text AS "public"."UserRole"),CAST($2::text AS "public"."UserRole"),CAST($3::text AS "public"."UserRole"),CAST($4::text AS "public"."UserRole"),CAST($5::text AS "public"."UserRole"))) ORDER BY "public"."users"."role" ASC, "public"."users"."last_name" ASC OFFSET $6
+ GET /admin/new?tab=transaction&_rsc=ihz8b 200 in 1297ms
+prisma:query SELECT "public"."firms"."id", "public"."firms"."name" FROM "public"."firms" WHERE 1=1 ORDER BY "public"."firms"."name" ASC OFFSET $1
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."role"::text FROM "public"."users" WHERE ("public"."users"."deleted_at" IS NULL AND "public"."users"."role" IN (CAST($1::text AS "public"."UserRole"),CAST($2::text AS "public"."UserRole"),CAST($3::text AS "public"."UserRole"),CAST($4::text AS "public"."UserRole"),CAST($5::text AS "public"."UserRole"))) ORDER BY "public"."users"."role" ASC, "public"."users"."last_name" ASC OFFSET $6
+ GET /admin/new?tab=transaction&_rsc=ihz8b 200 in 253ms
+ ✓ Compiled in 843ms (315 modules)
+prisma:query SELECT "public"."firms"."id", "public"."firms"."name" FROM "public"."firms" WHERE 1=1 ORDER BY "public"."firms"."name" ASC OFFSET $1
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name", "public"."users"."email", "public"."users"."role"::text FROM "public"."users" WHERE ("public"."users"."deleted_at" IS NULL AND "public"."users"."role" IN (CAST($1::text AS "public"."UserRole"),CAST($2::text AS "public"."UserRole"),CAST($3::text AS "public"."UserRole"),CAST($4::text AS "public"."UserRole"),CAST($5::text AS "public"."UserRole"))) ORDER BY "public"."users"."role" ASC, "public"."users"."last_name" ASC OFFSET $6
+ GET /admin/new?tab=transaction&_rsc=ihz8b 200 in 368ms
+ GET /api/auth/session 200 in 389ms
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."users"."id" FROM "public"."users" WHERE "public"."users"."deleted_at" IS NULL OFFSET $1) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."transactions"."id" FROM "public"."transactions" WHERE "public"."transactions"."deleted_at" IS NULL OFFSET $1) AS "sub"
+prisma:query SELECT "public"."system_settings"."id", "public"."system_settings"."is_email_configured" FROM "public"."system_settings" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT "public"."transactions"."id", "public"."transactions"."reference", "public"."transactions"."status"::text, "public"."transactions"."property_id", "public"."transactions"."seller_id", "public"."transactions"."buyer_id", "public"."transactions"."conveyancer_user_id", "public"."transactions"."agent_user_id", "public"."transactions"."conveyancer_firm_id", "public"."transactions"."job_number", "public"."transactions"."contract_id", "public"."transactions"."seller_contact_address", "public"."transactions"."agent_contact_name", "public"."transactions"."agent_phone", "public"."transactions"."agent_email", "public"."transactions"."buyer_solicitor_name", "public"."transactions"."buyer_solicitor_phone", "public"."transactions"."buyer_solicitor_email", "public"."transactions"."buyer_contact_address", "public"."transactions"."ffa_submission_id", "public"."transactions"."seller_submitted_at", "public"."transactions"."buyer_accepted_at", "public"."transactions"."exchanged_at", "public"."transactions"."valuation_date", "public"."transactions"."scheduled_exchange_date", "public"."transactions"."current_version", "public"."transactions"."deleted_at", "public"."transactions"."created_at", "public"."transactions"."updated_at" FROM "public"."transactions" WHERE "public"."transactions"."deleted_at" IS NULL ORDER BY "public"."transactions"."created_at" DESC OFFSET $1
+prisma:query SELECT "public"."properties"."id", "public"."properties"."address_line1", "public"."properties"."city", "public"."properties"."postcode" FROM "public"."properties" WHERE "public"."properties"."id" IN ($1,$2,$3,$4,$5) OFFSET $6
+prisma:query SELECT "public"."users"."id", "public"."users"."first_name", "public"."users"."last_name" FROM "public"."users" WHERE "public"."users"."id" IN ($1,$2,$3,$4) OFFSET $5
+ GET /admin?_rsc=1r3we 200 in 277ms
+ ○ Compiling /admin/settings/email ...
+ ✓ Compiled /admin/settings/email in 4.4s (1192 modules)
+prisma:query SELECT "public"."system_settings"."id", "public"."system_settings"."smtp_host", "public"."system_settings"."smtp_port", "public"."system_settings"."smtp_user", "public"."system_settings"."smtp_pass_encrypted", "public"."system_settings"."email_from_name", "public"."system_settings"."email_from_address", "public"."system_settings"."is_email_configured", "public"."system_settings"."updated_by_user_id", "public"."system_settings"."updated_at" FROM "public"."system_settings" WHERE 1=1 LIMIT $1 OFFSET $2
+ GET /admin/settings/email?_rsc=caesc 200 in 813ms
+ GET /api/auth/session 200 in 429ms
+ GET /api/auth/session 200 in 2172ms
+ GET /api/auth/session 200 in 289ms
+ ○ Compiling /api/admin/settings/email/test ...
+ ✓ Compiled /api/admin/settings/email/test in 3.5s (978 modules)
+ POST /api/admin/settings/email/test 422 in 5489ms
+ POST /api/admin/settings/email/test 422 in 417ms
+ GET /api/auth/session 200 in 329ms
+ POST /api/admin/settings/email/test 422 in 280ms
+ POST /api/admin/settings/email/test 422 in 280ms
+ POST /api/admin/settings/email/test 422 in 424ms
+ POST /api/admin/settings/email/test 422 in 422ms
+ POST /api/admin/settings/email/test 422 in 445ms
+ GET /api/auth/session 200 in 194ms
+prisma:query SELECT "public"."system_settings"."id", "public"."system_settings"."smtp_host", "public"."system_settings"."smtp_port", "public"."system_settings"."smtp_user", "public"."system_settings"."smtp_pass_encrypted", "public"."system_settings"."email_from_name", "public"."system_settings"."email_from_address", "public"."system_settings"."is_email_configured", "public"."system_settings"."updated_by_user_id", "public"."system_settings"."updated_at" FROM "public"."system_settings" WHERE 1=1 LIMIT $1 OFFSET $2
+ GET /admin/settings/email 200 in 1049ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 3.7s (1007 modules)
+ GET /favicon.ico 200 in 6185ms
+ GET /api/auth/session 200 in 5494ms
+ GET /api/auth/session 200 in 476ms
+ GET /api/auth/session 200 in 204ms
+ GET /api/auth/session 200 in 649ms
+ POST /api/admin/settings/email/test 422 in 755ms
+ POST /api/admin/settings/email/test 422 in 850ms
+ GET /api/auth/session 200 in 246ms
+ POST /api/admin/settings/email/test 422 in 329ms
+ ✓ Compiled in 3.4s (1293 modules)
+prisma:query SELECT "public"."system_settings"."id", "public"."system_settings"."smtp_host", "public"."system_settings"."smtp_port", "public"."system_settings"."smtp_user", "public"."system_settings"."smtp_pass_encrypted", "public"."system_settings"."email_from_name", "public"."system_settings"."email_from_address", "public"."system_settings"."is_email_configured", "public"."system_settings"."updated_by_user_id", "public"."system_settings"."updated_at" FROM "public"."system_settings" WHERE 1=1 LIMIT $1 OFFSET $2
+ GET /admin/settings/email?_rsc=fwsm4 200 in 1366ms
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 1303ms (873 modules)
+(node:23304) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 12 unpipe listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:23304) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 12 error listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:23304) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 12 close listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:23304) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 12 finish listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:23304) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 12 unpipe listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:23304) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 12 error listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:23304) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 12 close listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:23304) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 12 finish listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+ GET /api/auth/session 200 in 2444ms
+prisma:query SELECT 1
+prisma:query SELECT "public"."system_settings"."id", "public"."system_settings"."smtp_host", "public"."system_settings"."smtp_port", "public"."system_settings"."smtp_user", "public"."system_settings"."smtp_pass_encrypted", "public"."system_settings"."email_from_name", "public"."system_settings"."email_from_address", "public"."system_settings"."is_email_configured", "public"."system_settings"."updated_by_user_id", "public"."system_settings"."updated_at" FROM "public"."system_settings" WHERE 1=1 LIMIT $1 OFFSET $2
+ GET /admin/settings/email 200 in 700ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 2.3s (903 modules)
+ GET /favicon.ico 200 in 5190ms
+ GET /api/auth/session 200 in 5378ms
+ GET /api/auth/session 200 in 758ms
+ GET /api/auth/session 200 in 244ms
+ GET /api/auth/session 200 in 280ms
+ GET /api/auth/session 200 in 461ms
+prisma:query SELECT 1
+prisma:query SELECT "public"."system_settings"."id", "public"."system_settings"."smtp_host", "public"."system_settings"."smtp_port", "public"."system_settings"."smtp_user", "public"."system_settings"."smtp_pass_encrypted", "public"."system_settings"."email_from_name", "public"."system_settings"."email_from_address", "public"."system_settings"."is_email_configured", "public"."system_settings"."updated_by_user_id", "public"."system_settings"."updated_at" FROM "public"."system_settings" WHERE 1=1 LIMIT $1 OFFSET $2
+ GET /admin/settings/email 200 in 2200ms
+ GET /favicon.ico 200 in 597ms
+ GET /api/auth/session 200 in 286ms
+ GET /api/auth/session 200 in 411ms
+ GET /api/auth/session 200 in 1473ms
+ ○ Compiling /api/admin/settings/email/test ...
+ ✓ Compiled /api/admin/settings/email/test in 4.2s (978 modules)
+ POST /api/admin/settings/email/test 422 in 6741ms
+ POST /api/admin/settings/email/test 422 in 225ms
+ POST /api/admin/settings/email/test 422 in 216ms
+ POST /api/admin/settings/email/test 422 in 222ms
+ GET /api/auth/session 200 in 650ms
+ GET /api/auth/session 200 in 259ms
+ GET /api/auth/session 200 in 369ms
+ POST /api/admin/settings/email/test 422 in 7030ms
+ GET /api/auth/session 200 in 405ms
+ POST /api/admin/settings/email/test 422 in 5520ms
+ POST /api/admin/settings/email/test 422 in 5518ms
+ GET /api/auth/session 200 in 14622ms
+prisma:error Error in PostgreSQL connection: Error { kind: Closed, cause: None }
+prisma:error Error in PostgreSQL connection: Error { kind: Closed, cause: None }
+prisma:error Error in PostgreSQL connection: Error { kind: Closed, cause: None }
+prisma:error Error in PostgreSQL connection: Error { kind: Closed, cause: None }

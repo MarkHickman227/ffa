@@ -100,12 +100,20 @@ export default async function AdminDashboard() {
             <span className="text-lg leading-none">+</span> Add Transaction
           </Link>
           {isAdmin && (
-            <Link
-              href="/admin/settings/email"
-              className="flex items-center gap-2 border border-gray-300 text-gray-600 px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-50 transition ml-auto"
-            >
-              ✉ Email Settings
-            </Link>
+            <>
+              <Link
+                href="/email"
+                className="flex items-center gap-2 border border-blue-900 text-blue-900 px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-50 transition"
+              >
+                ✉ Email
+              </Link>
+              <Link
+                href="/admin/settings/email"
+                className="flex items-center gap-2 border border-gray-300 text-gray-600 px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-50 transition ml-auto"
+              >
+                Email Settings
+              </Link>
+            </>
           )}
         </div>
 

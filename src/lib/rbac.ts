@@ -27,6 +27,9 @@ export type Action =
   | 'gdpr:sar'
   | 'gdpr:erasure'
   | 'admin:all'
+  | 'email:read'
+  | 'email:send'
+  | 'email:manage'
 
 const ROLE_PERMISSIONS: Record<UserRole, Action[]> = {
   [UserRole.SELLER]: [
@@ -54,6 +57,9 @@ const ROLE_PERMISSIONS: Record<UserRole, Action[]> = {
     'conveyancer:export_pdf',
     'enquiry:answer',
     'enquiry:close',
+    'email:read',
+    'email:send',
+    'email:manage',
   ],
   [UserRole.AGENT]: [
     'transaction:read',
@@ -61,6 +67,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Action[]> = {
     'agent:read',
     'agent:reconcile',
     'enquiry:answer',
+    'email:read',
   ],
   [UserRole.ADMIN]: [
     'transaction:read',
@@ -77,6 +84,9 @@ const ROLE_PERMISSIONS: Record<UserRole, Action[]> = {
     'gdpr:sar',
     'gdpr:erasure',
     'admin:all',
+    'email:read',
+    'email:send',
+    'email:manage',
   ],
   [UserRole.BUYER_SOLICITOR]: [
     'transaction:read',
