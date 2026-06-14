@@ -35,9 +35,23 @@ export interface FfaItemLookupResult {
 
 interface FfaApiRawResult {
   status?: string
-  item?: { detected_title?: string; brand?: string | null; model?: string | null }
-  pricing?: { average_price_gbp?: number | null }
-  ta10?: { sdlt_sensitivity?: string; suggested_status?: string; flags?: string[] }
+  code?: string
+  message?: string
+  item?: {
+    detected_title?: string
+    brand?: string | null
+    model?: string | null
+    specifications?: Record<string, string>
+  }
+  pricing?: {
+    average_price_gbp?: number | null
+    price_confidence?: string
+  }
+  ta10?: {
+    sdlt_sensitivity?: string
+    suggested_status?: string
+    flags?: string[]
+  }
   reasoning?: string
 }
 
@@ -99,6 +113,7 @@ export async function ffaItemLookup(imageBase64: string, ta10Category?: string):
     const { status, text } = await httpsPost(`${BASE}/v1/item-lookup`, payload)
     if (status >= 200 && status < 300) {
       const raw: FfaApiRawResult = JSON.parse(text)
+      if (raw.status === 'error') throw new Error(raw.message ?? raw.code ?? 'API error')
       return {
         item_name:        raw.item?.detected_title ?? '',
         brand:            raw.item?.brand ?? '',
@@ -119,19 +134,61 @@ export async function ffaSubmitForm(
   propertyReference: string,
   items: FfaItem[],
 ): Promise<{ submission_id: string }> {
+  const flaskItems = items.map(item => ({
+    title:         item.item_name,
+    brand:         item.brand,
+    model:         item.model,
+    price:         item.estimated_value,
+    sdlt:          item.sdlt_sensitivity,
+    status:        item.status,
+    notes:         item.notes,
+    category_name: item.room,
+    reasoning:     '',
+    image_b64:     item.image ?? '',
+  }))
   const res = await fetch(`${BASE}/v1/submit-form`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ property_reference: propertyReference, items }),
+    body: JSON.stringify({ property_ref: propertyReference, items: flaskItems }),
   })
   if (!res.ok) throw new Error(`submit-form ${res.status}`)
   return res.json()
 }
 
+interface FlaskFormItem {
+  item_title?: string
+  brand?: string
+  model?: string
+  price?: string | number | null
+  sdlt?: string
+  status?: string
+  notes?: string
+  category_name?: string
+  reasoning?: string
+  image_b64?: string
+}
+
 export async function ffaGetForm(submissionId: string): Promise<FfaFormDetail> {
   const res = await fetch(`${BASE}/v1/forms/${submissionId}`)
   if (!res.ok) throw new Error(`get-form ${res.status}`)
-  return res.json()
+  const raw = await res.json() as { submission_id: string; property_ref?: string; property_reference?: string; submitted_at?: string; timestamp?: string; items: FlaskFormItem[] }
+  return {
+    submission_id:      raw.submission_id,
+    property_reference: raw.property_ref ?? raw.property_reference ?? '',
+    timestamp:          raw.submitted_at ?? raw.timestamp ?? '',
+    items: (raw.items ?? []).map(i => ({
+      item_name:        i.item_title ?? '',
+      brand:            i.brand ?? '',
+      model:            i.model ?? '',
+      estimated_value:  i.price != null ? Number(i.price) : null,
+      sdlt_sensitivity: (i.sdlt ?? 'Low') as SdltSensitivity,
+      notes:            i.notes ?? '',
+      status:           (i.status ?? 'Include') as FfaStatus,
+      room:             i.category_name ?? 'General',
+      reasoning:        i.reasoning ?? '',
+      image:            i.image_b64 ? `data:image/jpeg;base64,${i.image_b64}` : undefined,
+    })),
+  }
 }
 
 export async function ffaListForms(): Promise<FfaFormSummary[]> {

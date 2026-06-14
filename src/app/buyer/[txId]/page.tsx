@@ -74,7 +74,7 @@ export default function BuyerReviewPage() {
           notes:            String(i.notes ?? ''),
           status:           i.status === 'EXCLUDED' ? 'Exclude' : i.status === 'NEGOTIABLE' ? 'Negotiate' : 'Include',
           room:             String(i.room ?? 'General'),
-          image:            undefined,
+          image:            Array.isArray(i.signedPhotoUrls) && (i.signedPhotoUrls as string[]).length > 0 ? (i.signedPhotoUrls as string[])[0] : undefined,
         }))
         const propRef = tx?.property
           ? [tx.property.addressLine1, tx.property.postcode].filter(Boolean).join(', ')
