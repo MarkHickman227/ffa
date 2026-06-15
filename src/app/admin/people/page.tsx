@@ -2,6 +2,7 @@ import { getServerSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { AddPersonPanel } from './AddPersonPanel'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,19 +39,22 @@ export default async function PeoplePage() {
   const session = await getServerSession()
   if (!session?.user) redirect('/auth/signin')
 
-  const users = await prisma.user.findMany({
-    where: { deletedAt: null },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-      phone: true,
-      role: true,
-      firm: { select: { name: true } },
-    },
-    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-  })
+  const [users, firms] = await Promise.all([
+    prisma.user.findMany({
+      where: { deletedAt: null },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        role: true,
+        firm: { select: { name: true } },
+      },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    }),
+    prisma.firm.findMany({ orderBy: { name: 'asc' } }),
+  ])
 
   const grouped = users.reduce<Record<string, typeof users>>((acc, u) => {
     acc[u.role] = acc[u.role] ?? []
@@ -70,20 +74,15 @@ export default async function PeoplePage() {
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">People</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              {users.length} {users.length === 1 ? 'person' : 'people'} across {Object.keys(grouped).length} roles
-            </p>
-          </div>
-          <Link
-            href="/admin/new"
-            className="flex items-center gap-2 bg-blue-900 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-800 transition"
-          >
-            <span className="text-base leading-none">+</span> Add Person
-          </Link>
+        <div className="mb-6">
+          <h1 className="text-xl font-bold text-gray-900">People</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {users.length} {users.length === 1 ? 'person' : 'people'} across {Object.keys(grouped).length} roles
+          </p>
         </div>
+
+        {/* Inline add form */}
+        <AddPersonPanel firms={firms} />
 
         {/* Role sections */}
         <div className="space-y-10">
