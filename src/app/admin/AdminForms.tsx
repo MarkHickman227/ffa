@@ -243,14 +243,14 @@ function AddTransactionForm({ firms, staffUsers }: { firms: Firm[]; staffUsers: 
         <div>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Property Address</p>
           <div className="space-y-2">
-            <input required autoComplete="address-line1" placeholder="Address line 1" value={form.addressLine1} onChange={(e) => set('addressLine1', e.target.value)}
+            <input required autoComplete="new-password" placeholder="Address line 1" value={form.addressLine1} onChange={(e) => set('addressLine1', e.target.value)}
               className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input autoComplete="address-line2" placeholder="Address line 2 (optional)" value={form.addressLine2} onChange={(e) => set('addressLine2', e.target.value)}
+            <input autoComplete="new-password" placeholder="Address line 2 (optional)" value={form.addressLine2} onChange={(e) => set('addressLine2', e.target.value)}
               className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             <div className="grid grid-cols-2 gap-2">
-              <input required autoComplete="address-level2" placeholder="City" value={form.city} onChange={(e) => set('city', e.target.value)}
+              <input required autoComplete="new-password" placeholder="City" value={form.city} onChange={(e) => set('city', e.target.value)}
                 className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <input required autoComplete="postal-code" placeholder="Postcode" value={form.postcode} onChange={(e) => set('postcode', e.target.value)}
+              <input required autoComplete="new-password" placeholder="Postcode" value={form.postcode} onChange={(e) => set('postcode', e.target.value)}
                 className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
           </div>
