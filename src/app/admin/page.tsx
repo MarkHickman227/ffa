@@ -99,6 +99,12 @@ export default async function AdminDashboard() {
           >
             <span className="text-lg leading-none">+</span> Add Transaction
           </Link>
+          <Link
+            href="/admin/people"
+            className="flex items-center gap-2 border border-blue-900 text-blue-900 px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-50 transition"
+          >
+            People
+          </Link>
           {isAdmin && (
             <>
               <Link
