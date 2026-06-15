@@ -13,7 +13,10 @@ const MAX_FAILED_LOGINS = 5
 const LOCKOUT_MINUTES = 15
 
 export const authOptions: AuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  adapter: {
+    ...PrismaAdapter(prisma),
+    getUserByEmail: (email: string) => prisma.user.findFirst({ where: { email } }),
+  },
   session: { strategy: 'jwt', maxAge: 8 * 60 * 60 }, // 8 hours
   pages: {
     signIn: '/auth/signin',
@@ -55,7 +58,7 @@ export const authOptions: AuthOptions = {
       async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) return null
 
-        const user = await prisma.user.findUnique({
+        const user = await prisma.user.findFirst({
           where: { email: credentials.email.toLowerCase() },
         })
 
@@ -142,7 +145,7 @@ export const authOptions: AuthOptions = {
       }
       // On sign-in via magic link, fetch role from DB
       if (trigger === 'signIn' && !token.role) {
-        const dbUser = await prisma.user.findUnique({
+        const dbUser = await prisma.user.findFirst({
           where: { email: token.email! },
           select: { id: true, role: true, firmId: true },
         })

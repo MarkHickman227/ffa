@@ -34,8 +34,8 @@ export const POST = withRBAC('admin:all', async (req: NextRequest) => {
 
   const { firstName, lastName, email, phone, role, firmId, transactionId } = parsed.data
 
-  const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() } })
-  if (existing) return NextResponse.json({ error: 'A user with this email already exists' }, { status: 409 })
+  const existing = await prisma.user.findUnique({ where: { email_role: { email: email.toLowerCase(), role } } })
+  if (existing) return NextResponse.json({ error: 'This person already has that role' }, { status: 409 })
 
   if (transactionId) {
     const tx = await prisma.transaction.findUnique({ where: { id: transactionId }, select: { id: true } })
