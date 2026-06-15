@@ -74,6 +74,8 @@ export default function SellerFormPage() {
   const [submitErr,    setSubmitErr]    = useState('')
   const [showExitDlg,  setShowExitDlg]  = useState(false)
   const [saveStatus,   setSaveStatus]   = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [savedItems,   setSavedItems]   = useState<Array<{ id: string; room: string; itemName: string; make: string | null; estimatedValue: string | null; photoUrls: string[] }>>([])
+  const [deletingId,   setDeletingId]   = useState<string | null>(null)
 
   const camRef  = useRef<HTMLInputElement>(null)
   const gallRef = useRef<HTMLInputElement>(null)
@@ -89,6 +91,23 @@ export default function SellerFormPage() {
       })
       .catch(() => {})
   }, [txId])
+
+  useEffect(() => {
+    if (screen !== 'home') return
+    fetch(`/api/transactions/${txId}/fixtures`)
+      .then(r => r.ok ? r.json() : [])
+      .then((data: Record<string, unknown>[]) => setSavedItems(
+        data.filter(i => ((i.sortOrder as number) ?? 0) >= 0).map(i => ({
+          id:             String(i.id ?? ''),
+          room:           String(i.room ?? ''),
+          itemName:       String(i.itemName ?? ''),
+          make:           i.make ? String(i.make) : null,
+          estimatedValue: i.estimatedValue != null ? String(i.estimatedValue) : null,
+          photoUrls:      Array.isArray(i.signedPhotoUrls) ? (i.signedPhotoUrls as string[]) : [],
+        }))
+      ))
+      .catch(() => {})
+  }, [txId, screen])
 
   if (authStatus === 'loading') return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f4f3f0' }}>
@@ -276,6 +295,16 @@ export default function SellerFormPage() {
     }
   }
 
+  async function deleteSavedItem(id: string) {
+    setDeletingId(id)
+    try {
+      const r = await fetch(`/api/transactions/${txId}/fixtures/${id}`, { method: 'DELETE' })
+      if (r.ok || r.status === 204) setSavedItems(prev => prev.filter(i => i.id !== id))
+    } catch { /* ignore */ } finally {
+      setDeletingId(null)
+    }
+  }
+
   async function handleReviewAndSubmit() {
     setSubmitErr('')
     setScreen('submitting')
@@ -396,6 +425,33 @@ export default function SellerFormPage() {
               <button style={btnSecondary} onClick={handleSave} disabled={saveStatus === 'saving'}>
                 {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? '✓ Saved' : saveStatus === 'error' ? 'Save failed — tap to retry' : 'Save'}
               </button>
+              {savedItems.length > 0 && (
+                <div style={{ marginTop: 24, borderTop: `0.5px solid ${C.border}`, paddingTop: 16 }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>
+                    Previously submitted ({savedItems.length})
+                  </p>
+                  {savedItems.map(item => (
+                    <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', border: `0.5px solid ${C.border}`, borderRadius: 8, marginBottom: 6, background: C.bg }}>
+                      {item.photoUrls[0]
+                        ? <img src={item.photoUrls[0]} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6, flexShrink: 0, border: `0.5px solid ${C.border}` }} />
+                        : <div style={{ width: 40, height: 40, borderRadius: 6, flexShrink: 0, background: C.bgSurface, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>📦</div>
+                      }
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 500, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.itemName}</p>
+                        <p style={{ fontSize: 11, color: C.textMuted, margin: '1px 0 0' }}>
+                          {item.room}{item.make ? ` · ${item.make}` : ''}{item.estimatedValue ? ` · £${item.estimatedValue}` : ''}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => deleteSavedItem(item.id)}
+                        disabled={deletingId === item.id}
+                        style={{ padding: '5px 10px', border: `0.5px solid #F09595`, borderRadius: 6, background: 'transparent', color: C.redDark, fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>
+                        {deletingId === item.id ? '…' : 'Delete'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

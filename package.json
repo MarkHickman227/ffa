@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node .next/standalone/server.js",
     "lint": "next lint",
     "worker": "tsx workers/pdf-worker.ts",
     "worker:email-sync": "tsx workers/email-sync.ts",

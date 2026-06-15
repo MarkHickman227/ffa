@@ -3,6 +3,7 @@ import { withRBAC } from '@/lib/rbac'
 import { sendEmail } from '@/lib/email'
 import { writeAuditLog } from '@/lib/audit'
 import { getServerSession } from '@/lib/auth'
+import { ffaSubmitForm, itemTypeToSdlt, prismaStatusToFfa, type FfaItem } from '@/lib/ffa-api'
 import { NextRequest, NextResponse } from 'next/server'
 import { ItemType, ItemStatus, TransactionStatus } from '@prisma/client'
 
@@ -59,9 +60,9 @@ export const POST = withRBAC('seller_form:submit', async (req: NextRequest, { pa
   const submittedAt = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
   const appUrl = process.env.NEXTAUTH_URL ?? 'http://localhost:3001'
 
-  // Save all items to DB, replacing any existing draft
+  // Add new items; clear in-progress drafts (negative sortOrder); keep previous submissions
   await prisma.$transaction([
-    prisma.fixturesItem.deleteMany({ where: { transactionId: params.id } }),
+    prisma.fixturesItem.deleteMany({ where: { transactionId: params.id, sortOrder: { lt: 0 } } }),
     prisma.fixturesItem.createMany({
       data: items.map((item, i) => ({
         transactionId: params.id,
@@ -136,6 +137,33 @@ export const POST = withRBAC('seller_form:submit', async (req: NextRequest, { pa
     userId,
     eventData: { action: 'seller_submitted', itemCount: items.length },
   }).catch(() => {})
+
+  // Submit ALL items (previous + new) to Flask FFA API
+  try {
+    const allItems = await prisma.fixturesItem.findMany({
+      where: { transactionId: params.id, deletedAt: null, sortOrder: { gte: 0 } },
+      orderBy: [{ room: 'asc' }, { sortOrder: 'asc' }],
+    })
+    const ffaItems: FfaItem[] = allItems.map(item => ({
+      item_name:        item.itemName,
+      brand:            item.make ?? '',
+      model:            item.model ?? '',
+      estimated_value:  item.estimatedValue ? Number(item.estimatedValue) : null,
+      sdlt_sensitivity: itemTypeToSdlt(item.itemType),
+      notes:            item.notes ?? '',
+      status:           prismaStatusToFfa(item.status),
+      room:             item.room,
+      ...(item.photoUrls[0]?.startsWith('data:') ? { image: item.photoUrls[0].split(',')[1] } : {}),
+    }))
+    const { submission_id } = await ffaSubmitForm(address, ffaItems)
+    await prisma.transaction.update({
+      where: { id: params.id },
+      data: { ffaSubmissionId: submission_id },
+    })
+  } catch (ffaErr) {
+    console.error('[seller-submit] FFA submit failed:', ffaErr)
+    // Non-fatal: buyer form falls back to Prisma fixtures
+  }
 
   return NextResponse.json({ submitted: true, item_count: items.length })
 })

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { withRBAC } from '@/lib/rbac'
 import { writeAuditLog } from '@/lib/audit'
 import { assertMutable } from '@/lib/assertMutable'
+import { sendSellerFormInvite } from '@/lib/seller-invite'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from '@/lib/auth'
 import { z } from 'zod'
@@ -20,6 +21,7 @@ const PatchTransactionSchema = z.object({
   addressLine2:         z.string().max(255).optional(),
   city:                 z.string().min(1).max(100).optional(),
   postcode:             z.string().min(1).max(10).optional(),
+  sellerId:             nullableUUID,
   conveyancerFirmId:    nullableUUID,
   conveyancerUserId:    nullableUUID,
   agentUserId:          nullableUUID,
@@ -64,13 +66,20 @@ export const PATCH = withRBAC('conveyancer:manage', async (req: NextRequest, { p
 
   const tx = await prisma.transaction.findUnique({
     where: { id: params.id },
-    include: { property: true },
+    include: {
+      property: true,
+      seller: { select: { firstName: true, lastName: true, email: true } },
+    },
   })
   if (!tx) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const { addressLine1, addressLine2, city, postcode, ...txFields } = parsed.data
+  const { addressLine1, addressLine2, city, postcode, sellerId, ...txFields } = parsed.data
 
-  // Validate staff role assignments if provided
+  // Validate role assignments if provided
+  if (sellerId) {
+    const u = await prisma.user.findUnique({ where: { id: sellerId }, select: { role: true } })
+    if (!u || u.role !== 'SELLER') return NextResponse.json({ error: 'Invalid seller' }, { status: 422 })
+  }
   if (txFields.conveyancerUserId) {
     const u = await prisma.user.findUnique({ where: { id: txFields.conveyancerUserId }, select: { role: true } })
     if (!u || u.role !== 'CONVEYANCER') return NextResponse.json({ error: 'Invalid conveyancer' }, { status: 422 })
@@ -79,6 +88,9 @@ export const PATCH = withRBAC('conveyancer:manage', async (req: NextRequest, { p
     const u = await prisma.user.findUnique({ where: { id: txFields.agentUserId }, select: { role: true } })
     if (!u || u.role !== 'AGENT') return NextResponse.json({ error: 'Invalid agent' }, { status: 422 })
   }
+
+  const sellerChanged = sellerId != null && sellerId !== tx.sellerId
+
   await prisma.$transaction(async (db) => {
     // Update property address if any address field was supplied
     if (addressLine1 !== undefined || addressLine2 !== undefined || city !== undefined || postcode !== undefined) {
@@ -94,6 +106,7 @@ export const PATCH = withRBAC('conveyancer:manage', async (req: NextRequest, { p
     }
     // Update transaction fields
     const updateData: Record<string, unknown> = {}
+    if (sellerId !== undefined) updateData.sellerId = sellerId
     for (const [k, v] of Object.entries(txFields)) {
       if (v !== undefined) updateData[k] = v
     }
@@ -101,6 +114,24 @@ export const PATCH = withRBAC('conveyancer:manage', async (req: NextRequest, { p
       await db.transaction.update({ where: { id: params.id }, data: updateData })
     }
   })
+
+  // If the seller changed, send them a fresh invite with a magic sign-in link
+  if (sellerChanged) {
+    const newSeller = await prisma.user.findUnique({
+      where: { id: sellerId! },
+      select: { firstName: true, lastName: true, email: true },
+    })
+    if (newSeller) {
+      const address = [tx.property.addressLine1, tx.property.city, tx.property.postcode].filter(Boolean).join(', ')
+      sendSellerFormInvite({
+        sellerEmail: newSeller.email,
+        sellerName: `${newSeller.firstName} ${newSeller.lastName}`,
+        transactionId: params.id,
+        reference: tx.reference,
+        address,
+      }).catch(() => {})
+    }
+  }
 
   await writeAuditLog({
     eventType: 'TRANSACTION_STATUS_CHANGED',

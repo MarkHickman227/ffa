@@ -26,7 +26,7 @@ export default async function EditTransactionPage({ params }: { params: { id: st
     }),
     prisma.firm.findMany({ orderBy: { name: 'asc' } }),
     prisma.user.findMany({
-      where: { role: { in: ['CONVEYANCER', 'AGENT', 'BUYER_SOLICITOR'] }, deletedAt: null },
+      where: { role: { in: ['SELLER', 'CONVEYANCER', 'AGENT', 'BUYER_SOLICITOR'] }, deletedAt: null },
       select: { id: true, firstName: true, lastName: true, email: true, phone: true, role: true },
       orderBy: { firstName: 'asc' },
     }),

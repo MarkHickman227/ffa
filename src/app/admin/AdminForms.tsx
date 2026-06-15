@@ -165,7 +165,9 @@ function AddTransactionForm({ firms, staffUsers }: { firms: Firm[]; staffUsers: 
   const router = useRouter()
   const [form, setForm] = useState({
     addressLine1: '', addressLine2: '', city: '', postcode: '',
+    sellerUserId: '',
     sellerFirstName: '', sellerLastName: '', sellerEmail: '', sellerPhone: '',
+    buyerUserId: '',
     buyerFirstName: '', buyerLastName: '', buyerEmail: '', buyerPhone: '',
     agentUserId: '',
     buyerSolicitorUserId: '',
@@ -176,6 +178,30 @@ function AddTransactionForm({ firms, staffUsers }: { firms: Firm[]; staffUsers: 
 
   function set(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }))
+    setError(null); setSuccess(null)
+  }
+
+  function pickSeller(userId: string) {
+    const u = staffUsers.find(u => u.id === userId)
+    setForm(prev => ({
+      ...prev,
+      sellerUserId: userId,
+      sellerFirstName: u?.firstName ?? '',
+      sellerLastName: u?.lastName ?? '',
+      sellerEmail: u?.email ?? '',
+    }))
+    setError(null); setSuccess(null)
+  }
+
+  function pickBuyer(userId: string) {
+    const u = staffUsers.find(u => u.id === userId)
+    setForm(prev => ({
+      ...prev,
+      buyerUserId: userId,
+      buyerFirstName: u?.firstName ?? '',
+      buyerLastName: u?.lastName ?? '',
+      buyerEmail: u?.email ?? '',
+    }))
     setError(null); setSuccess(null)
   }
 
@@ -197,7 +223,9 @@ function AddTransactionForm({ firms, staffUsers }: { firms: Firm[]; staffUsers: 
       }
       if (form.addressLine2) body.addressLine2 = form.addressLine2
       if (form.sellerPhone) body.sellerPhone = form.sellerPhone
+      if (form.sellerUserId) body.sellerUserId = form.sellerUserId
       if (form.buyerPhone) body.buyerPhone = form.buyerPhone
+      if (form.buyerUserId) body.buyerUserId = form.buyerUserId
       if (form.agentUserId) body.agentUserId = form.agentUserId
       if (form.buyerSolicitorUserId) body.buyerSolicitorUserId = form.buyerSolicitorUserId
 
@@ -211,7 +239,9 @@ function AddTransactionForm({ firms, staffUsers }: { firms: Firm[]; staffUsers: 
         setSuccess(`Transaction ${tx.reference} created. Emails sent to all assigned parties.`)
         setForm({
           addressLine1: '', addressLine2: '', city: '', postcode: '',
+          sellerUserId: '',
           sellerFirstName: '', sellerLastName: '', sellerEmail: '', sellerPhone: '',
+          buyerUserId: '',
           buyerFirstName: '', buyerLastName: '', buyerEmail: '', buyerPhone: '',
           agentUserId: '',
           buyerSolicitorUserId: '',
@@ -231,6 +261,8 @@ function AddTransactionForm({ firms, staffUsers }: { firms: Firm[]; staffUsers: 
     }
   }
 
+  const sellers = byRole(staffUsers, 'SELLER')
+  const buyers = byRole(staffUsers, 'BUYER')
   const agents = byRole(staffUsers, 'AGENT')
   const solicitors = byRole(staffUsers, 'BUYER_SOLICITOR')
 
@@ -260,15 +292,25 @@ function AddTransactionForm({ firms, staffUsers }: { firms: Firm[]; staffUsers: 
         <div>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Seller</p>
           <div className="space-y-2">
+            {sellers.length > 0 && (
+              <select
+                value={form.sellerUserId}
+                onChange={(e) => pickSeller(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-50"
+              >
+                <option value="">— Select existing seller or enter details below —</option>
+                {sellers.map(u => <option key={u.id} value={u.id}>{userLabel(u)}</option>)}
+              </select>
+            )}
             <div className="grid grid-cols-2 gap-2">
-              <input required placeholder="First name" value={form.sellerFirstName} onChange={(e) => set('sellerFirstName', e.target.value)}
+              <input required name="sellerFirstName" autoComplete="off" placeholder="First name" value={form.sellerFirstName} onChange={(e) => set('sellerFirstName', e.target.value)}
                 className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <input required placeholder="Last name" value={form.sellerLastName} onChange={(e) => set('sellerLastName', e.target.value)}
+              <input required name="sellerLastName" autoComplete="off" placeholder="Last name" value={form.sellerLastName} onChange={(e) => set('sellerLastName', e.target.value)}
                 className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
-            <input required type="email" placeholder="Email address" value={form.sellerEmail} onChange={(e) => set('sellerEmail', e.target.value)}
+            <input required name="sellerEmail" autoComplete="off" type="email" placeholder="Email address" value={form.sellerEmail} onChange={(e) => set('sellerEmail', e.target.value)}
               className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="tel" placeholder="Phone number (optional)" value={form.sellerPhone} onChange={(e) => set('sellerPhone', e.target.value)}
+            <input name="sellerPhone" autoComplete="off" type="tel" placeholder="Phone number (optional)" value={form.sellerPhone} onChange={(e) => set('sellerPhone', e.target.value)}
               className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
         </div>
@@ -277,15 +319,25 @@ function AddTransactionForm({ firms, staffUsers }: { firms: Firm[]; staffUsers: 
         <div>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Buyer <span className="text-red-500">*</span></p>
           <div className="space-y-2">
+            {buyers.length > 0 && (
+              <select
+                value={form.buyerUserId}
+                onChange={(e) => pickBuyer(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-50"
+              >
+                <option value="">— Select existing buyer or enter details below —</option>
+                {buyers.map(u => <option key={u.id} value={u.id}>{userLabel(u)}</option>)}
+              </select>
+            )}
             <div className="grid grid-cols-2 gap-2">
-              <input required placeholder="First name" value={form.buyerFirstName} onChange={(e) => set('buyerFirstName', e.target.value)}
+              <input required name="buyerFirstName" autoComplete="off" placeholder="First name" value={form.buyerFirstName} onChange={(e) => set('buyerFirstName', e.target.value)}
                 className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <input required placeholder="Last name" value={form.buyerLastName} onChange={(e) => set('buyerLastName', e.target.value)}
+              <input required name="buyerLastName" autoComplete="off" placeholder="Last name" value={form.buyerLastName} onChange={(e) => set('buyerLastName', e.target.value)}
                 className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
-            <input required type="email" placeholder="Email address" value={form.buyerEmail} onChange={(e) => set('buyerEmail', e.target.value)}
+            <input required name="buyerEmail" autoComplete="off" type="email" placeholder="Email address" value={form.buyerEmail} onChange={(e) => set('buyerEmail', e.target.value)}
               className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="tel" placeholder="Phone number (optional)" value={form.buyerPhone} onChange={(e) => set('buyerPhone', e.target.value)}
+            <input name="buyerPhone" autoComplete="off" type="tel" placeholder="Phone number (optional)" value={form.buyerPhone} onChange={(e) => set('buyerPhone', e.target.value)}
               className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
         </div>

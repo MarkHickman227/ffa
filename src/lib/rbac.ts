@@ -76,6 +76,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Action[]> = {
     'seller_form:write',
     'seller_form:submit',
     'buyer_form:read',
+    'buyer_form:accept',
     'conveyancer:read',
     'conveyancer:manage',
     'conveyancer:dismiss_risk',

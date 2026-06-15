@@ -44,7 +44,8 @@ export const POST = withRBAC('seller_form:write', async (req: NextRequest, { par
   }
 
   await prisma.$transaction([
-    prisma.fixturesItem.deleteMany({ where: { transactionId: params.id } }),
+    // Only remove in-progress draft items (negative sortOrder); leave submitted items untouched
+    prisma.fixturesItem.deleteMany({ where: { transactionId: params.id, sortOrder: { lt: 0 } } }),
     prisma.fixturesItem.createMany({
       data: items.map((item, i) => ({
         transactionId: params.id,
@@ -58,7 +59,7 @@ export const POST = withRBAC('seller_form:write', async (req: NextRequest, { par
         model: null,
         notes: item.notes || '',
         photoUrls: item.imgData ? [item.imgData] : [],
-        sortOrder: i,
+        sortOrder: -(i + 1),  // negative = in-progress draft, not yet submitted
       })),
     }),
   ])

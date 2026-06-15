@@ -65,12 +65,18 @@ export default function BuyerReviewPage() {
         ])
         const tx    = await txRes.json()
         const fixt  = await fixtRes.json()
-        const items = (fixt.items ?? fixt ?? []).map((i: Record<string, unknown>) => ({
+        const items = ((fixt.items ?? fixt ?? []) as Record<string, unknown>[])
+          .filter(i => ((i.sortOrder as number) ?? 0) >= 0)
+          .map((i) => ({
           item_name:        String(i.itemName ?? i.item_name ?? ''),
           brand:            String(i.make ?? i.brand ?? ''),
           model:            String(i.model ?? ''),
-          estimated_value:  typeof i.estimatedValue === 'number' ? i.estimatedValue : typeof i.estimated_value === 'number' ? i.estimated_value : null,
-          sdlt_sensitivity: 'Low' as const,
+          estimated_value:  i.estimatedValue != null ? Number(i.estimatedValue) : i.estimated_value != null ? Number(i.estimated_value) : null,
+          sdlt_sensitivity: (
+            ['FIXTURE', 'BATHROOM_FITTING', 'OUTDOOR_STRUCTURE', 'SECURITY_SYSTEM'].includes(String(i.itemType ?? '')) ? 'High' :
+            ['KITCHEN_APPLIANCE', 'SMART_HOME', 'LIGHT_FITTING'].includes(String(i.itemType ?? '')) ? 'Medium' :
+            'Low'
+          ) as 'Low' | 'Medium' | 'High',
           notes:            String(i.notes ?? ''),
           status:           i.status === 'EXCLUDED' ? 'Exclude' : i.status === 'NEGOTIABLE' ? 'Negotiate' : 'Include',
           room:             String(i.room ?? 'General'),

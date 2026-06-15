@@ -3,6 +3,34 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+function ResendInviteButton({ txId }: { txId: string }) {
+  const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+
+  async function resend() {
+    setState('sending')
+    try {
+      const res = await fetch(`/api/transactions/${txId}/resend-invite`, { method: 'POST' })
+      setState(res.ok ? 'sent' : 'error')
+    } catch {
+      setState('error')
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-3">
+      <button
+        type="button"
+        onClick={resend}
+        disabled={state === 'sending' || state === 'sent'}
+        className="text-xs bg-blue-50 border border-blue-300 text-blue-800 px-3 py-1.5 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition"
+      >
+        {state === 'sending' ? 'Sending…' : state === 'sent' ? '✓ Sent' : 'Resend seller invite'}
+      </button>
+      {state === 'error' && <span className="text-xs text-red-600">Send failed — check email settings</span>}
+    </div>
+  )
+}
+
 interface StaffUser { id: string; firstName: string; lastName: string; email: string; phone?: string | null; role: string }
 interface Firm { id: string; name: string }
 
@@ -87,6 +115,8 @@ export function EditTransactionForm({ tx, firms, staffUsers, isLocked }: {
   tx: TxData; firms: Firm[]; staffUsers: StaffUser[]; isLocked: boolean
 }) {
   const router = useRouter()
+  const sellers = staffUsers.filter(u => u.role === 'SELLER')
+  const [sellerId, setSellerId] = useState('')
   const [form, setForm] = useState({
     addressLine1: tx.property.addressLine1,
     addressLine2: tx.property.addressLine2 ?? '',
@@ -150,6 +180,7 @@ export function EditTransactionForm({ tx, firms, staffUsers, isLocked }: {
     setSaving(true); setError(null); setSuccess(false)
     try {
       const body: Record<string, string | null> = {
+        ...(sellerId ? { sellerId } : {}),
         addressLine1: form.addressLine1,
         addressLine2: form.addressLine2 || null,
         city: form.city,
@@ -204,9 +235,12 @@ export function EditTransactionForm({ tx, firms, staffUsers, isLocked }: {
         <Input label="Transaction ID" name="reference" value={tx.reference} readOnly />
       </div>
 
-      {/* Seller — read-only */}
+      {/* Seller */}
       <div className="bg-white rounded-xl shadow p-6 space-y-3">
-        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Seller (read-only)</p>
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Seller</p>
+          {!isLocked && <ResendInviteButton txId={tx.id} />}
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <Input label="First Name" name="sellerFirstName" value={tx.seller.firstName} readOnly />
           <Input label="Last Name" name="sellerLastName" value={tx.seller.lastName} readOnly />
@@ -215,7 +249,28 @@ export function EditTransactionForm({ tx, firms, staffUsers, isLocked }: {
           <Input label="Email" name="sellerEmail" type="email" value={tx.seller.email} readOnly />
           <Input label="Phone" name="sellerPhone" type="tel" value={tx.seller.phone ?? ''} readOnly />
         </div>
-        <p className="text-xs text-gray-400">To change seller details, contact a system administrator.</p>
+        {!isLocked && sellers.length > 0 && (
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+              Change seller
+            </label>
+            <select
+              value={sellerId}
+              onChange={(e) => setSellerId(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">— Keep current seller —</option>
+              {sellers.map(u => (
+                <option key={u.id} value={u.id}>
+                  {u.firstName} {u.lastName} ({u.email})
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-amber-700 mt-1">
+              Selecting a new seller will send them a sign-in link to their form.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Buyer — read-only */}

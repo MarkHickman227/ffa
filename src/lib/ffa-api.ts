@@ -3,21 +3,26 @@ import https from 'https'
 const BASE = process.env.FFA_API_URL ?? 'https://ffa-api.avaloncreativeltd.com'
 
 // Node.js 24 built-in fetch (undici) fails TLS verification on this server's cert.
-// The native https module handles it correctly.
-function httpsPost(url: string, body: string): Promise<{ status: number; text: string }> {
+// The native https module handles it correctly — used for ALL external API calls.
+function httpsReq(url: string, method: string, body?: string): Promise<{ status: number; text: string }> {
   return new Promise((resolve, reject) => {
     const u = new URL(url)
+    const headers: Record<string, string | number> = body
+      ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+      : {}
     const req = https.request(
-      { hostname: u.hostname, path: u.pathname + u.search, method: 'POST',
-        rejectUnauthorized: false,
-        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) } },
+      { hostname: u.hostname, path: u.pathname + u.search, method, rejectUnauthorized: false, headers },
       (res) => {
         let data = ''; res.on('data', c => { data += c }); res.on('end', () => resolve({ status: res.statusCode ?? 0, text: data }))
       }
     )
-    req.on('error', reject); req.write(body); req.end()
+    req.on('error', reject)
+    if (body) req.write(body)
+    req.end()
   })
 }
+// Keep backwards-compatible alias used by ffaItemLookup below
+const httpsPost = (url: string, body: string) => httpsReq(url, 'POST', body)
 
 export type SdltSensitivity = 'Low' | 'Medium' | 'High'
 export type FfaStatus = 'Include' | 'Exclude' | 'Negotiate'
@@ -146,13 +151,10 @@ export async function ffaSubmitForm(
     reasoning:     '',
     image_b64:     item.image ?? '',
   }))
-  const res = await fetch(`${BASE}/v1/submit-form`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ property_ref: propertyReference, items: flaskItems }),
-  })
-  if (!res.ok) throw new Error(`submit-form ${res.status}`)
-  return res.json()
+  const body = JSON.stringify({ property_ref: propertyReference, items: flaskItems })
+  const { status, text } = await httpsReq(`${BASE}/v1/submit-form`, 'POST', body)
+  if (status < 200 || status >= 300) throw new Error(`submit-form ${status}: ${text}`)
+  return JSON.parse(text)
 }
 
 interface FlaskFormItem {
@@ -169,9 +171,9 @@ interface FlaskFormItem {
 }
 
 export async function ffaGetForm(submissionId: string): Promise<FfaFormDetail> {
-  const res = await fetch(`${BASE}/v1/forms/${submissionId}`)
-  if (!res.ok) throw new Error(`get-form ${res.status}`)
-  const raw = await res.json() as { submission_id: string; property_ref?: string; property_reference?: string; submitted_at?: string; timestamp?: string; items: FlaskFormItem[] }
+  const { status, text } = await httpsReq(`${BASE}/v1/forms/${submissionId}`, 'GET')
+  if (status < 200 || status >= 300) throw new Error(`get-form ${status}`)
+  const raw = JSON.parse(text) as { submission_id: string; property_ref?: string; property_reference?: string; submitted_at?: string; timestamp?: string; items: FlaskFormItem[] }
   return {
     submission_id:      raw.submission_id,
     property_reference: raw.property_ref ?? raw.property_reference ?? '',
@@ -192,21 +194,18 @@ export async function ffaGetForm(submissionId: string): Promise<FfaFormDetail> {
 }
 
 export async function ffaListForms(): Promise<FfaFormSummary[]> {
-  const res = await fetch(`${BASE}/v1/forms`)
-  if (!res.ok) throw new Error(`list-forms ${res.status}`)
-  return res.json()
+  const { status, text } = await httpsReq(`${BASE}/v1/forms`, 'GET')
+  if (status < 200 || status >= 300) throw new Error(`list-forms ${status}`)
+  return JSON.parse(text)
 }
 
 export async function ffaBuyerResponse(
   submissionId: string,
   responses: FfaBuyerResponseItem[],
 ): Promise<void> {
-  const res = await fetch(`${BASE}/v1/buyer-response`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ submission_id: submissionId, responses }),
-  })
-  if (!res.ok) throw new Error(`buyer-response ${res.status}`)
+  const body = JSON.stringify({ submission_id: submissionId, responses })
+  const { status, text } = await httpsReq(`${BASE}/v1/buyer-response`, 'POST', body)
+  if (status < 200 || status >= 300) throw new Error(`buyer-response ${status}: ${text}`)
 }
 
 // ── Field mapping helpers (Prisma ↔ external API) ──────────────────────────

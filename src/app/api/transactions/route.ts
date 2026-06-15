@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { withRBAC } from '@/lib/rbac'
 import { writeAuditLog } from '@/lib/audit'
 import { sendEmail } from '@/lib/email'
+import { sendSellerFormInvite } from '@/lib/seller-invite'
 import { getServerSession } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -20,11 +21,13 @@ const CreateTransactionSchema = z.object({
   addressLine2: z.string().max(255).optional(),
   city: z.string().min(1).max(100),
   postcode: z.string().min(1).max(10),
+  sellerUserId: optUUID,
   sellerEmail: z.string().email(),
   sellerFirstName: z.string().min(1).max(100),
   sellerLastName: z.string().min(1).max(100),
   sellerPhone: z.string().max(30).optional(),
   // BR-001: buyer required
+  buyerUserId: optUUID,
   buyerEmail: z.string().email(),
   buyerFirstName: z.string().min(1).max(100),
   buyerLastName: z.string().min(1).max(100),
@@ -42,7 +45,7 @@ export const POST = withRBAC('transaction:create', async (req: NextRequest) => {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
 
   const user = session!.user as any
-  const { conveyancerUserId, agentUserId, buyerSolicitorUserId } = parsed.data
+  const { sellerUserId, buyerUserId, conveyancerUserId, agentUserId, buyerSolicitorUserId } = parsed.data
 
   if (conveyancerUserId) {
     const u = await prisma.user.findUnique({ where: { id: conveyancerUserId }, select: { role: true } })
@@ -69,17 +72,32 @@ export const POST = withRBAC('transaction:create', async (req: NextRequest) => {
 
   const { sellerEmail, sellerFirstName, sellerLastName, sellerPhone, buyerEmail, buyerFirstName, buyerLastName, buyerPhone } = parsed.data
 
-  const seller = await prisma.user.upsert({
-    where: { email: sellerEmail.toLowerCase() },
-    create: { email: sellerEmail.toLowerCase(), firstName: sellerFirstName, lastName: sellerLastName, role: 'SELLER', phone: sellerPhone ?? null },
-    update: { phone: sellerPhone ?? undefined },
-  })
+  // If an existing user ID was supplied, use it directly; otherwise upsert by email
+  let seller: { id: string; email: string; firstName: string; lastName: string }
+  if (sellerUserId) {
+    const existing = await prisma.user.findUnique({ where: { id: sellerUserId }, select: { id: true, email: true, firstName: true, lastName: true } })
+    if (!existing) return NextResponse.json({ error: 'Seller user not found' }, { status: 422 })
+    seller = existing
+  } else {
+    seller = await prisma.user.upsert({
+      where: { email: sellerEmail.toLowerCase() },
+      create: { email: sellerEmail.toLowerCase(), firstName: sellerFirstName, lastName: sellerLastName, role: 'SELLER', phone: sellerPhone ?? null },
+      update: { phone: sellerPhone ?? undefined },
+    })
+  }
 
-  const buyer = await prisma.user.upsert({
-    where: { email: buyerEmail.toLowerCase() },
-    create: { email: buyerEmail.toLowerCase(), firstName: buyerFirstName, lastName: buyerLastName, role: 'BUYER', phone: buyerPhone ?? null },
-    update: { phone: buyerPhone ?? undefined },
-  })
+  let buyer: { id: string; email: string; firstName: string; lastName: string }
+  if (buyerUserId) {
+    const existing = await prisma.user.findUnique({ where: { id: buyerUserId }, select: { id: true, email: true, firstName: true, lastName: true } })
+    if (!existing) return NextResponse.json({ error: 'Buyer user not found' }, { status: 422 })
+    buyer = existing
+  } else {
+    buyer = await prisma.user.upsert({
+      where: { email: buyerEmail.toLowerCase() },
+      create: { email: buyerEmail.toLowerCase(), firstName: buyerFirstName, lastName: buyerLastName, role: 'BUYER', phone: buyerPhone ?? null },
+      update: { phone: buyerPhone ?? undefined },
+    })
+  }
 
   const property = await prisma.property.create({
     data: {
@@ -118,15 +136,16 @@ export const POST = withRBAC('transaction:create', async (req: NextRequest) => {
   })
 
   const address = `${property.addressLine1}, ${property.city} ${property.postcode}`
-  const sellerUrl = `${process.env.NEXTAUTH_URL}/seller/${tx.id}`
 
   // Fire all notification emails simultaneously
   Promise.allSettled([
-    // BR-002: seller receives the Fixtures & Fittings form link
-    sendEmail({
-      to: seller.email,
-      event: 'SELLER_FORM_INVITE',
-      data: { sellerName: `${seller.firstName} ${seller.lastName}`, address, reference, url: sellerUrl },
+    // BR-002: seller receives a magic-link that signs them in and opens their form directly
+    sendSellerFormInvite({
+      sellerEmail: seller.email,
+      sellerName: `${seller.firstName} ${seller.lastName}`,
+      transactionId: tx.id,
+      reference,
+      address,
     }),
     // Estate agent notification
     ...(agentUser ? [sendEmail({
