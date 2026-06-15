@@ -1,7 +1,7 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
 import { useSession, signOut } from 'next-auth/react'
-import { useRouter, useParams } from 'next/navigation'
+import { useRouter, useParams, useSearchParams } from 'next/navigation'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -61,6 +61,15 @@ export default function SellerFormPage() {
   const txId = params?.txId as string
   const { data: session, status: authStatus } = useSession()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const sellerToken = searchParams.get('token')
+
+  function authFetch(url: string, init?: RequestInit): Promise<Response> {
+    if (!sellerToken) return fetch(url, init)
+    const headers = new Headers((init?.headers ?? {}) as HeadersInit)
+    headers.set('x-seller-token', sellerToken)
+    return fetch(url, { ...init, headers })
+  }
 
   const [propRef,    setPropRef]    = useState('')
   const [screen,     setScreen]     = useState<Screen>('home')
@@ -81,7 +90,7 @@ export default function SellerFormPage() {
   const gallRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    fetch(`/api/transactions/${txId}`)
+    authFetch(`/api/transactions/${txId}`)
       .then(r => r.ok ? r.json() : null)
       .then((d: { property?: { addressLine1?: string; postcode?: string } } | null) => {
         if (d?.property) {
@@ -90,11 +99,11 @@ export default function SellerFormPage() {
         }
       })
       .catch(() => {})
-  }, [txId])
+  }, [txId, sellerToken])
 
   useEffect(() => {
     if (screen !== 'home') return
-    fetch(`/api/transactions/${txId}/fixtures`)
+    authFetch(`/api/transactions/${txId}/fixtures`)
       .then(r => r.ok ? r.json() : [])
       .then((data: Record<string, unknown>[]) => setSavedItems(
         data.filter(i => ((i.sortOrder as number) ?? 0) >= 0).map(i => ({
@@ -109,13 +118,20 @@ export default function SellerFormPage() {
       .catch(() => {})
   }, [txId, screen])
 
-  if (authStatus === 'loading') return (
+  if (!sellerToken && authStatus === 'loading') return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f4f3f0' }}>
       <div style={{ width: 36, height: 36, border: '3px solid #EEEDFE', borderTopColor: '#370994', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
-  if (authStatus === 'unauthenticated') { router.push('/auth/signin'); return null }
+  if (!sellerToken && authStatus === 'unauthenticated') return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f4f3f0', fontFamily: 'Arial, sans-serif' }}>
+      <div style={{ textAlign: 'center', padding: 40 }}>
+        <p style={{ color: '#370994', fontWeight: 600, fontSize: 18, margin: '0 0 8px' }}>Link not recognised</p>
+        <p style={{ color: '#6b7280', fontSize: 14, margin: 0 }}>Please use the link from your invitation email, or contact your conveyancer.</p>
+      </div>
+    </div>
+  )
 
   const totalItems     = Object.values(roomItems).reduce((n, a) => n + a.length, 0)
   const roomsWithItems = Object.values(roomItems).filter(a => a.length > 0).length
@@ -176,7 +192,7 @@ export default function SellerFormPage() {
 
     setModalMode('analyzing')
     try {
-      const r = await fetch(`/api/transactions/${txId}/ffa/item-lookup`, {
+      const r = await authFetch(`/api/transactions/${txId}/ffa/item-lookup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ photoDataUrl: dataUrl, ta10Category: curRoom }),
@@ -243,7 +259,7 @@ export default function SellerFormPage() {
       }))
     )
     try {
-      const r = await fetch(`/api/transactions/${txId}/ffa/direct-submit`, {
+      const r = await authFetch(`/api/transactions/${txId}/ffa/direct-submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ property_reference: propRef, items }),
@@ -281,7 +297,7 @@ export default function SellerFormPage() {
     if (saveStatus === 'saving') return
     setSaveStatus('saving')
     try {
-      const r = await fetch(`/api/transactions/${txId}/ffa/save-draft`, {
+      const r = await authFetch(`/api/transactions/${txId}/ffa/save-draft`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items: buildPayload() }),
@@ -298,7 +314,7 @@ export default function SellerFormPage() {
   async function deleteSavedItem(id: string) {
     setDeletingId(id)
     try {
-      const r = await fetch(`/api/transactions/${txId}/fixtures/${id}`, { method: 'DELETE' })
+      const r = await authFetch(`/api/transactions/${txId}/fixtures/${id}`, { method: 'DELETE' })
       if (r.ok || r.status === 204) setSavedItems(prev => prev.filter(i => i.id !== id))
     } catch { /* ignore */ } finally {
       setDeletingId(null)
@@ -309,7 +325,7 @@ export default function SellerFormPage() {
     setSubmitErr('')
     setScreen('submitting')
     try {
-      const r = await fetch(`/api/transactions/${txId}/ffa/seller-submit`, {
+      const r = await authFetch(`/api/transactions/${txId}/ffa/seller-submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ property_reference: propRef, items: buildPayload() }),

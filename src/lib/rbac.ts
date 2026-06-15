@@ -3,6 +3,14 @@ import { getServerSession } from 'next-auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { authOptions } from './auth-options'
 import { prisma } from './prisma'
+import { verifySellerToken } from './seller-access'
+
+const SELLER_TOKEN_ACTIONS: Action[] = [
+  'transaction:read',
+  'seller_form:read',
+  'seller_form:write',
+  'seller_form:submit',
+]
 
 // ─── Permission Matrix ─────────────────────────────────────────────────────
 
@@ -158,6 +166,16 @@ type RouteHandler = (
 
 export function withRBAC(action: Action, handler: RouteHandler): RouteHandler {
   return async (req, context) => {
+    // Seller direct-link bypass: token in x-seller-token header grants access
+    // to seller_form and transaction:read actions for the matching transaction.
+    if (SELLER_TOKEN_ACTIONS.includes(action)) {
+      const token = req.headers.get('x-seller-token')
+      const txId = context.params?.id as string | undefined
+      if (token && txId && verifySellerToken(token, txId)) {
+        return handler(req, context)
+      }
+    }
+
     const session = await getServerSession(authOptions)
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
