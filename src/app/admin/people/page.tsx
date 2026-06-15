@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { AddPersonPanel } from './AddPersonPanel'
+import { DeletePersonButton } from './DeletePersonButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -146,6 +147,8 @@ export default async function PeoplePage() {
                         </div>
                       )}
                     </div>
+
+                    <DeletePersonButton id={u.id} name={`${u.firstName} ${u.lastName}`} />
                   </div>
                 ))}
               </div>
