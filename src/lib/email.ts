@@ -1,6 +1,54 @@
 import nodemailer from 'nodemailer'
 import { logger } from './logger'
 
+export interface ItemRow {
+  room: string
+  name: string
+  brand?: string | null
+  type: string    // e.g. "Fixture", "Appliance", "Fitting"
+  status: string  // "Included" | "Excluded" | "Negotiable"
+  value?: number | null
+  notes?: string | null
+}
+
+export function buildItemsTable(items: ItemRow[]): string {
+  if (items.length === 0) return ''
+
+  const byRoom: Record<string, ItemRow[]> = {}
+  for (const item of items) {
+    const room = item.room || 'Other'
+    byRoom[room] = byRoom[room] ?? []
+    byRoom[room].push(item)
+  }
+
+  const statusColor = (s: string) =>
+    s === 'Excluded' ? '#dc2626' : s === 'Negotiable' ? '#d97706' : '#16a34a'
+
+  let html = `<div style="margin-top:24px;border-top:2px solid #1e3a5f;padding-top:20px">`
+  html += `<h3 style="font-size:15px;font-weight:bold;color:#1e3a5f;margin:0 0 16px">Fixtures &amp; Fittings Schedule — ${items.length} item${items.length !== 1 ? 's' : ''}</h3>`
+
+  for (const [room, roomItems] of Object.entries(byRoom)) {
+    const roomLabel = room.charAt(0).toUpperCase() + room.slice(1).replace(/_/g, ' ')
+    html += `<div style="margin-bottom:14px">`
+    html += `<div style="background:#1e3a5f;color:#fff;padding:5px 10px;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:0.08em">${roomLabel}</div>`
+    html += `<table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #e5e7eb;border-top:none">`
+    for (const item of roomItems) {
+      html += `<tr style="border-bottom:1px solid #f3f4f6">`
+      html += `<td style="padding:7px 10px;color:#111827;width:38%"><strong>${item.name}</strong>`
+      if (item.brand) html += ` <span style="color:#6b7280">(${item.brand})</span>`
+      if (item.notes) html += `<br><span style="color:#9ca3af;font-size:11px">${item.notes}</span>`
+      html += `</td>`
+      html += `<td style="padding:7px 10px;color:#6b7280;width:20%">${item.type}</td>`
+      html += `<td style="padding:7px 10px;width:22%"><span style="color:${statusColor(item.status)};font-weight:600">${item.status}</span></td>`
+      html += `<td style="padding:7px 10px;text-align:right;color:#374151;width:20%">${item.value != null ? `£${Number(item.value).toLocaleString('en-GB')}` : '—'}</td>`
+      html += `</tr>`
+    }
+    html += `</table></div>`
+  }
+  html += `</div>`
+  return html
+}
+
 // Lazy import of DB + decrypt to avoid circular deps at module load
 async function getSmtpConfig(): Promise<{
   host: string; port: number; user?: string; pass?: string; from: string
@@ -113,14 +161,17 @@ function buildHtml(event: EmailEvent, data: Record<string, string>): string {
       <p>Your conveyancer has opened a Fixtures &amp; Fittings transaction for <strong>${data.address}</strong> (ref: ${data.reference}).</p>
       <p>Please complete the TA10 Fixtures &amp; Fittings form at the link below. Your responses will form part of the legal contract for the sale.</p>
       <p><a href="${data.url}" style="background:#1e3a5f;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block">Complete your F&amp;F form</a></p>`,
-    SELLER_FORM_SUBMITTED: `<p>The Fixtures &amp; Fittings form for <strong>${data.address}</strong> (ref: ${data.reference}) has been submitted by the seller on ${data.submittedAt}.</p>
-      <p>Please review and forward to the buyer when ready.</p>`,
+    SELLER_FORM_SUBMITTED: `${data.solicitorName ? `<p>Dear ${data.solicitorName},</p>` : ''}
+      <p>The seller has completed and submitted the Fixtures &amp; Fittings form for <strong>${data.address}</strong> (ref: ${data.reference}) on ${data.submittedAt}.</p>
+      <p>A copy has been sent directly to the buyer. The full schedule is below for your records.</p>
+      ${data.itemsTable ?? ''}`,
     SELLER_PACK_SUBMITTED_AGENT: `<p>Dear ${data.agentName},</p>
       <p>The seller has completed the Fixtures &amp; Fittings selling pack for <strong>${data.address}</strong> (ref: ${data.reference}) on ${data.submittedAt}.</p>
       <p>The pack is now being passed to the conveyancer for review. You will be notified of further updates as the transaction progresses.</p>`,
     BUYER_REVIEW_READY: `<p>Dear ${data.buyerName},</p>
-      <p>The Fixtures &amp; Fittings schedule for <strong>${data.address}</strong> (ref: ${data.reference}) has been forwarded to you by the conveyancer. Please review each item and respond.</p>
-      <p><a href="${data.url}" style="background:#1e3a5f;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block">Review the schedule</a></p>`,
+      <p>The seller has completed the Fixtures &amp; Fittings form for <strong>${data.address}</strong> (ref: ${data.reference}). The full schedule is below — please review each item and record your responses using the button below.</p>
+      ${data.itemsTable ?? ''}
+      <p style="margin-top:20px"><a href="${data.url}" style="background:#1e3a5f;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block">Review &amp; respond online</a></p>`,
     BUYER_ACCEPTED: `<p>The buyer has accepted the Fixtures &amp; Fittings schedule for <strong>${data.address}</strong> (ref: ${data.reference}) on ${data.acceptedAt}.</p>`,
     BUYER_ACCEPTED_ALL_PARTIES: `<p>The buyer has formally accepted the Fixtures &amp; Fittings schedule for <strong>${data.address}</strong> (ref: ${data.reference}) on ${data.acceptedAt}.</p>
       <p>All parties have been notified. The conveyancer will proceed with final distribution.</p>`,

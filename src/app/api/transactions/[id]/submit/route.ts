@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { withRBAC } from '@/lib/rbac'
 import { writeAuditLog } from '@/lib/audit'
 import { emitWebhookEvent } from '@/lib/webhooks'
-import { sendEmail } from '@/lib/email'
+import { sendEmail, buildItemsTable, type ItemRow } from '@/lib/email'
 import { TransactionStatus } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -91,6 +91,24 @@ export const POST = withRBAC('seller_form:submit', async (req: NextRequest, { pa
   const submittedAt = new Date().toLocaleString('en-GB', { dateStyle: 'long', timeStyle: 'short' })
   const isRevision = tx.status === TransactionStatus.SELLER_REVISION
 
+  // Build items table for emails
+  const dbItems = await prisma.fixturesItem.findMany({
+    where: { transactionId: params.id, deletedAt: null, sortOrder: { gte: 0 } },
+    orderBy: [{ room: 'asc' }, { sortOrder: 'asc' }],
+  })
+  const itemRows: ItemRow[] = dbItems.map(i => ({
+    room: i.room,
+    name: i.itemName,
+    brand: i.make,
+    type: i.itemType === 'FIXTURE' ? 'Fixture'
+        : ['KITCHEN_APPLIANCE', 'BATHROOM_FITTING'].includes(i.itemType) ? 'Appliance'
+        : 'Fitting',
+    status: i.status === 'EXCLUDED' ? 'Excluded' : i.status === 'NEGOTIABLE' ? 'Negotiable' : 'Included',
+    value: i.estimatedValue ? Number(i.estimatedValue) : null,
+    notes: i.notes || null,
+  }))
+  const itemsTable = buildItemsTable(itemRows)
+
   if (isRevision) {
     // BR-014: notify conveyancer that revised form is ready for review
     const conveyancers = tx.conveyancerFirm?.users ?? []
@@ -102,7 +120,7 @@ export const POST = withRBAC('seller_form:submit', async (req: NextRequest, { pa
       }).catch(() => {})
     }
   } else {
-    // Initial submission — notify buyer and solicitors
+    // Initial submission — send full schedule to buyer and solicitors
     if (tx.buyer) {
       sendEmail({
         to: tx.buyer.email,
@@ -112,6 +130,7 @@ export const POST = withRBAC('seller_form:submit', async (req: NextRequest, { pa
           address,
           reference: tx.reference,
           url: `${process.env.NEXTAUTH_URL}/buyer/${tx.id}`,
+          itemsTable,
         },
       }).catch(() => {})
     }
@@ -121,7 +140,7 @@ export const POST = withRBAC('seller_form:submit', async (req: NextRequest, { pa
       sendEmail({
         to: conv.email,
         event: 'SELLER_FORM_SUBMITTED',
-        data: { address, reference: tx.reference, submittedAt },
+        data: { address, reference: tx.reference, submittedAt, itemsTable },
       }).catch(() => {})
     }
 

@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { withRBAC } from '@/lib/rbac'
-import { sendEmail } from '@/lib/email'
+import { sendEmail, buildItemsTable, type ItemRow } from '@/lib/email'
 import { writeAuditLog } from '@/lib/audit'
 import { getServerSession } from '@/lib/auth'
 import { ffaSubmitForm, itemTypeToSdlt, prismaStatusToFfa, type FfaItem } from '@/lib/ffa-api'
@@ -60,6 +60,17 @@ export const POST = withRBAC('seller_form:submit', async (req: NextRequest, { pa
   const submittedAt = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
   const appUrl = process.env.NEXTAUTH_URL ?? 'http://localhost:3001'
 
+  const itemRows: ItemRow[] = items.map(item => ({
+    room: item.room,
+    name: item.title || 'Unnamed item',
+    brand: item.brand || null,
+    type: item.sdlt === 'high' ? 'Fixture' : item.sdlt === 'medium' ? 'Appliance' : 'Fitting',
+    status: item.status === 'exclude' ? 'Excluded' : item.status === 'negotiate' ? 'Negotiable' : 'Included',
+    value: item.price,
+    notes: item.notes || null,
+  }))
+  const itemsTable = buildItemsTable(itemRows)
+
   // Add new items; clear in-progress drafts (negative sortOrder); keep previous submissions
   await prisma.$transaction([
     prisma.fixturesItem.deleteMany({ where: { transactionId: params.id, sortOrder: { lt: 0 } } }),
@@ -91,7 +102,7 @@ export const POST = withRBAC('seller_form:submit', async (req: NextRequest, { pa
     },
   })
 
-  // Send email to buyer
+  // Send email to buyer — includes full items schedule
   if (tx.buyer?.email) {
     sendEmail({
       to: tx.buyer.email,
@@ -101,11 +112,12 @@ export const POST = withRBAC('seller_form:submit', async (req: NextRequest, { pa
         address,
         reference: tx.reference,
         url: `${appUrl}/buyer/${tx.id}`,
+        itemsTable,
       },
     }).catch(() => {})
   }
 
-  // Send email to conveyancer/solicitor
+  // Send email to conveyancer/solicitor — includes full items schedule
   const solicitorEmail = tx.conveyancerUser?.email ?? (tx as any).buyerSolicitorEmail
   const solicitorName  = tx.conveyancerUser
     ? `${tx.conveyancerUser.firstName} ${tx.conveyancerUser.lastName}`
@@ -114,7 +126,7 @@ export const POST = withRBAC('seller_form:submit', async (req: NextRequest, { pa
     sendEmail({
       to: solicitorEmail,
       event: 'SELLER_FORM_SUBMITTED',
-      data: { address, reference: tx.reference, submittedAt },
+      data: { solicitorName, address, reference: tx.reference, submittedAt, itemsTable },
     }).catch(() => {})
   }
 
