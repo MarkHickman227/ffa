@@ -237,7 +237,7 @@ function AddTransactionForm({ firms, staffUsers }: { firms: Firm[]; staffUsers: 
   return (
     <div className="bg-white rounded-xl shadow p-6">
       <h2 className="text-base font-bold text-gray-900 mb-4">Add New Transaction</h2>
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} autoComplete="off" className="space-y-5">
 
         {/* Property */}
         <div>
