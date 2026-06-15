@@ -167,27 +167,8 @@ function buildHtml(event: EmailEvent, data: Record<string, string>): string {
 }
 
 export async function sendEmail(params: EmailParams): Promise<void> {
-  const subject = SUBJECTS[params.event]
-  const html = buildHtml(params.event, params.data)
-  const to = Array.isArray(params.to) ? params.to : [params.to]
-
-  // Prefer Resend API when available (same path as NextAuth magic-link emails)
-  if (process.env.RESEND_API_KEY) {
-    const { Resend } = await import('resend')
-    const resend = new Resend(process.env.RESEND_API_KEY)
-    const from = process.env.EMAIL_FROM ?? 'FFA <noreply@ffa.law>'
-    try {
-      await resend.emails.send({ from, to, subject, html })
-      logger.info({ event: params.event, to: params.to }, 'Email sent via Resend')
-      return
-    } catch (err) {
-      logger.error({ err, event: params.event }, 'Resend send failed')
-      throw err
-    }
-  }
-
-  // Fall back to SMTP (nodemailer) when no Resend API key
   const cfg = await getSmtpConfig()
+  const to = Array.isArray(params.to) ? params.to.join(', ') : params.to
   const transporter = nodemailer.createTransport({
     host: cfg.host,
     port: cfg.port,
@@ -196,10 +177,15 @@ export async function sendEmail(params: EmailParams): Promise<void> {
     tls: { rejectUnauthorized: false },
   })
   try {
-    await transporter.sendMail({ from: cfg.from, to: to.join(', '), subject, html })
-    logger.info({ event: params.event, to: params.to }, 'Email sent via SMTP')
+    await transporter.sendMail({
+      from: cfg.from,
+      to,
+      subject: SUBJECTS[params.event],
+      html: buildHtml(params.event, params.data),
+    })
+    logger.info({ event: params.event, to: params.to }, 'Email sent')
   } catch (err) {
-    logger.error({ err, event: params.event }, 'Email send failed via SMTP')
+    logger.error({ err, event: params.event }, 'Email send failed')
     throw err
   }
 }
