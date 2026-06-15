@@ -63,7 +63,7 @@ export const POST = withRBAC('transaction:create', async (req: NextRequest) => {
 
   // Upsert seller
   const seller = await prisma.user.upsert({
-    where: { email: d.sellerEmail.toLowerCase() },
+    where: { email_role: { email: d.sellerEmail.toLowerCase(), role: 'SELLER' } },
     create: {
       email: d.sellerEmail.toLowerCase(),
       firstName: d.sellerFirstName,
@@ -82,7 +82,7 @@ export const POST = withRBAC('transaction:create', async (req: NextRequest) => {
   let buyer = null
   if (d.buyerFirstName && d.buyerLastName && d.buyerEmail) {
     buyer = await prisma.user.upsert({
-      where: { email: d.buyerEmail.toLowerCase() },
+      where: { email_role: { email: d.buyerEmail.toLowerCase(), role: 'BUYER' } },
       create: {
         email: d.buyerEmail.toLowerCase(),
         firstName: d.buyerFirstName,
