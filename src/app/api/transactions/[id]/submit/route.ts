@@ -7,6 +7,7 @@ import { TransactionStatus } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getServerSession } from '@/lib/auth'
+import { generateBuyerToken } from '@/lib/seller-access'
 
 const SubmitSchema = z.object({
   ipAddress: z.string(),
@@ -129,7 +130,7 @@ export const POST = withRBAC('seller_form:submit', async (req: NextRequest, { pa
           buyerName: `${tx.buyer.firstName} ${tx.buyer.lastName}`,
           address,
           reference: tx.reference,
-          url: `${process.env.NEXTAUTH_URL}/buyer/${tx.id}`,
+          url: `${process.env.NEXTAUTH_URL}/buyer/${tx.id}?token=${generateBuyerToken(tx.id)}`,
           itemsTable,
         },
       }).catch(() => {})

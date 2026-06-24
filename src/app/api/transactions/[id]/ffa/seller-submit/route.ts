@@ -6,6 +6,7 @@ import { getServerSession } from '@/lib/auth'
 import { ffaSubmitForm, itemTypeToSdlt, prismaStatusToFfa, type FfaItem } from '@/lib/ffa-api'
 import { NextRequest, NextResponse } from 'next/server'
 import { ItemType, ItemStatus, TransactionStatus } from '@prisma/client'
+import { generateBuyerToken } from '@/lib/seller-access'
 
 interface SubmitItem {
   room: string
@@ -111,7 +112,7 @@ export const POST = withRBAC('seller_form:submit', async (req: NextRequest, { pa
         buyerName: `${tx.buyer.firstName} ${tx.buyer.lastName}`,
         address,
         reference: tx.reference,
-        url: `${appUrl}/buyer/${tx.id}`,
+        url: `${appUrl}/buyer/${tx.id}?token=${generateBuyerToken(tx.id)}`,
         itemsTable,
       },
     }).catch(() => {})

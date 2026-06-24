@@ -5,6 +5,7 @@ import { sendEmail } from '@/lib/email'
 import { TransactionStatus } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from '@/lib/auth'
+import { generateBuyerToken } from '@/lib/seller-access'
 
 export const POST = withRBAC('conveyancer:manage', async (_req: NextRequest, { params }) => {
   const session = await getServerSession()
@@ -45,7 +46,7 @@ export const POST = withRBAC('conveyancer:manage', async (_req: NextRequest, { p
       buyerName: `${tx.buyer.firstName} ${tx.buyer.lastName}`,
       address,
       reference: tx.reference,
-      url: `${process.env.NEXTAUTH_URL}/buyer/${tx.id}`,
+      url: `${process.env.NEXTAUTH_URL}/buyer/${tx.id}?token=${generateBuyerToken(tx.id)}`,
     },
   }).catch(() => {})
 

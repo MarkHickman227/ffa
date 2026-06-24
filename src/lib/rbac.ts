@@ -3,13 +3,19 @@ import { getServerSession } from 'next-auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { authOptions } from './auth-options'
 import { prisma } from './prisma'
-import { verifySellerToken } from './seller-access'
+import { verifySellerToken, verifyBuyerToken } from './seller-access'
 
 const SELLER_TOKEN_ACTIONS: Action[] = [
   'transaction:read',
   'seller_form:read',
   'seller_form:write',
   'seller_form:submit',
+]
+
+const BUYER_TOKEN_ACTIONS: Action[] = [
+  'transaction:read',
+  'buyer_form:read',
+  'buyer_form:accept',
 ]
 
 // ─── Permission Matrix ─────────────────────────────────────────────────────
@@ -166,12 +172,20 @@ type RouteHandler = (
 
 export function withRBAC(action: Action, handler: RouteHandler): RouteHandler {
   return async (req, context) => {
-    // Seller direct-link bypass: token in x-seller-token header grants access
-    // to seller_form and transaction:read actions for the matching transaction.
+    // Seller direct-link bypass
     if (SELLER_TOKEN_ACTIONS.includes(action)) {
       const token = req.headers.get('x-seller-token')
       const txId = context.params?.id as string | undefined
       if (token && txId && verifySellerToken(token, txId)) {
+        return handler(req, context)
+      }
+    }
+
+    // Buyer direct-link bypass
+    if (BUYER_TOKEN_ACTIONS.includes(action)) {
+      const token = req.headers.get('x-buyer-token')
+      const txId = context.params?.id as string | undefined
+      if (token && txId && verifyBuyerToken(token, txId)) {
         return handler(req, context)
       }
     }

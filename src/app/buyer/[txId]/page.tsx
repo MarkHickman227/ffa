@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
-import { useRouter, useParams } from 'next/navigation'
+import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import type { FfaFormDetail, BuyerResponseType } from '@/lib/ffa-api'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -41,6 +41,15 @@ export default function BuyerReviewPage() {
   const txId = params?.txId as string
   const { data: session, status: authStatus } = useSession()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const buyerToken = searchParams?.get('token') ?? null
+
+  function authFetch(url: string, init?: RequestInit): Promise<Response> {
+    if (!buyerToken) return fetch(url, init)
+    const headers = new Headers((init?.headers ?? {}) as HeadersInit)
+    headers.set('x-buyer-token', buyerToken)
+    return fetch(url, { ...init, headers })
+  }
 
   const [loading,    setLoading]    = useState(true)
   const [loadErr,    setLoadErr]    = useState('')
@@ -51,17 +60,19 @@ export default function BuyerReviewPage() {
   const [submitErr,  setSubmitErr]  = useState('')
   const [submitted,  setSubmitted]  = useState(false)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    if (!buyerToken && authStatus !== 'authenticated') return
     // Try FFA API first; fall back to Prisma fixtures if no submission exists
-    fetch(`/api/transactions/${txId}/ffa/form`)
+    authFetch(`/api/transactions/${txId}/ffa/form`)
       .then(r => r.json())
       .then(async (d: FfaFormDetail & { error?: string }) => {
         if (!d.error) { setForm(d); return }
 
         // Fallback: load from Prisma fixtures + transaction
         const [txRes, fixtRes] = await Promise.all([
-          fetch(`/api/transactions/${txId}`),
-          fetch(`/api/transactions/${txId}/fixtures`),
+          authFetch(`/api/transactions/${txId}`),
+          authFetch(`/api/transactions/${txId}/fixtures`),
         ])
         const tx    = await txRes.json()
         const fixt  = await fixtRes.json()
@@ -89,10 +100,21 @@ export default function BuyerReviewPage() {
       })
       .catch((e: Error) => setLoadErr(e.message || 'Could not load form'))
       .finally(() => setLoading(false))
-  }, [txId])
+  }, [txId, buyerToken, authStatus])
 
-  if (authStatus === 'loading' || loading) return <Spinner label="Loading form..." />
-  if (authStatus === 'unauthenticated') { router.push('/login'); return null }
+  if (!buyerToken && authStatus === 'loading') return <Spinner label="Loading form..." />
+  if (!buyerToken && authStatus === 'unauthenticated') return (
+    <Shell>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px 16px' }}>
+        <div style={{ background: C.bg, borderRadius: 12, padding: 24, maxWidth: 400, width: '100%', textAlign: 'center' }}>
+          <p style={{ fontSize: 32, marginBottom: 12 }}>🔒</p>
+          <p style={{ fontWeight: 600, marginBottom: 8 }}>Link not recognised</p>
+          <p style={{ fontSize: 14, color: C.textMuted }}>Please use the link from your invitation email to access the buyer review.</p>
+        </div>
+      </div>
+    </Shell>
+  )
+  if (loading) return <Spinner label="Loading form..." />
 
   if (loadErr) {
     return (
@@ -156,7 +178,7 @@ export default function BuyerReviewPage() {
       }
     })
     try {
-      const r = await fetch(`/api/transactions/${txId}/ffa/buyer-response`, {
+      const r = await authFetch(`/api/transactions/${txId}/ffa/buyer-response`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ responses }),

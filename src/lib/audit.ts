@@ -42,6 +42,9 @@ export type AuditEventType =
   // GDPR
   | 'SAR_REQUESTED'
   | 'ERASURE_REQUESTED'
+  // Seller reminders
+  | 'SELLER_REMINDER_7D'
+  | 'SELLER_REMINDER_14D'
   // System
   | 'WEBHOOK_DELIVERY_FAILED'
   | 'RETENTION_PURGE_RUN'
